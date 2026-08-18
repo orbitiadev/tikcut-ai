@@ -7,6 +7,7 @@ import Guide from './components/Guide';
 import './storyverse.css';
 import './editor-v2.css';
 import './studio-pro.css';
+import './timeline-edit.css';
 import './finalizer.css';
 import './nav-responsive.css';
 
