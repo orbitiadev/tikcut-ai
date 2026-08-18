@@ -16,7 +16,7 @@ jobs:
       - name: Install app dependencies
         run: npm install --no-audit --no-fund
       - name: Install Chromium for Playwright
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install chromium
       - name: Ensure branded Chrome is available for H.264 QA
         run: |
           if command -v google-chrome >/dev/null 2>&1; then
