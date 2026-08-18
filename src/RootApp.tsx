@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import EditorV2 from './components/EditorV2';
-import StudioPro from './components/StudioPro';
+import StudioPro from './components/StudioProV2';
 import Storyverse from './components/Storyverse';
 import Guide from './components/Guide';
 import './storyverse.css';
