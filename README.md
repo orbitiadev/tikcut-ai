@@ -37,6 +37,8 @@ Variáveis:
 
 Framework preset: Vite. Build command: `npm run build`. Output: `dist`.
 
+O projeto Vercel de produção está conectado ao repositório `orbitiadev/tikcut-ai`; commits na branch `main` são usados para validar o fluxo de deploy automático.
+
 ## Privacidade
 
 O fluxo principal foi desenhado para manter vídeo e renderização no dispositivo. Upload para Supabase é opcional. O projeto não depende de copiar código, modelos ou ativos proprietários de editores pagos; os recursos são implementados com lógica própria e componentes open source.
