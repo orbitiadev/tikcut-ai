@@ -7,7 +7,7 @@ on:
 jobs:
   browser-qa:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -17,13 +17,22 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Install Chromium for Playwright
         run: npx playwright install --with-deps chromium
+      - name: Ensure branded Chrome is available for H.264 QA
+        run: |
+          if command -v google-chrome >/dev/null 2>&1; then
+            google-chrome --version
+          elif command -v google-chrome-stable >/dev/null 2>&1; then
+            google-chrome-stable --version
+          else
+            npx playwright install chrome
+          fi
       - name: Install ffmpeg tools
         run: |
           sudo apt-get install -y --no-install-recommends ffmpeg
           command -v ffmpeg
           command -v ffprobe
           ffmpeg -version | sed -n '1p'
-      - name: Generate 65-minute browser fixture
+      - name: Generate 65-minute WebM and H.264 MP4 fixtures
         run: |
           mkdir -p tests/fixtures
           ffmpeg -hide_banner -loglevel error -y \
@@ -31,7 +40,15 @@ jobs:
             -f lavfi -i "aevalsrc=if(lt(mod(t\,12)\,8)\,0.12*sin(2*PI*440*t)\,0):s=16000:d=3905" \
             -t 3905 -c:v libvpx -deadline realtime -cpu-used 8 -b:v 80k -pix_fmt yuv420p \
             -c:a libopus -b:a 20k -shortest tests/fixtures/long-65min.webm
+          ffmpeg -hide_banner -loglevel error -y \
+            -f lavfi -i "testsrc2=size=160x90:rate=1" \
+            -f lavfi -i "aevalsrc=if(lt(mod(t\,12)\,8)\,0.12*sin(2*PI*440*t)\,0):s=16000:d=3905" \
+            -t 3905 -c:v libx264 -preset ultrafast -tune zerolatency -b:v 80k -g 30 -pix_fmt yuv420p \
+            -c:a aac -b:a 24k -movflags +faststart -shortest tests/fixtures/long-65min-h264.mp4
+          echo "WebM fixture:"
           ffprobe -v error -show_entries format=duration,size -of default=nw=1 tests/fixtures/long-65min.webm
+          echo "H.264 MP4 fixture:"
+          ffprobe -v error -show_entries format=duration,size -of default=nw=1 tests/fixtures/long-65min-h264.mp4
       - name: Typecheck and build
         run: npm run build
       - name: Start production preview
