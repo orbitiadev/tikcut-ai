@@ -23,7 +23,7 @@ jobs:
           node node_modules/ffmpeg-static/install.js
           node node_modules/@derhuerst/ffprobe-static/install.js
           FFMPEG_BIN="$(node -e "process.stdout.write(require('ffmpeg-static'))")"
-          FFPROBE_BIN="$(node -e "process.stdout.write(require('@derhuerst/ffprobe-static').path)")"
+          FFPROBE_BIN="$(node -e "process.stdout.write(require('@derhuerst/ffprobe-static'))")"
           echo "FFMPEG_BIN=$FFMPEG_BIN" >> "$GITHUB_ENV"
           echo "FFPROBE_BIN=$FFPROBE_BIN" >> "$GITHUB_ENV"
           "$FFMPEG_BIN" -version | sed -n '1p'
