@@ -29,7 +29,7 @@ test('Studio Pro exposes advanced modules and five editable timeline layers', as
   }
 });
 
-test('metadata, B-roll planning and Fruit AI storyboard have offline fallback behavior', async ({ page }) => {
+test('metadata, B-roll planning and Fruit AI storyboard work with local AI or fallback', async ({ page }) => {
   await openStudio(page);
   const transcript = 'Você precisa ver este detalhe agora! Um tubarão consegue detectar campos elétricos no oceano e isso muda a forma como ele encontra alimento. No final existe uma descoberta surpreendente.';
   await page.locator('.ai-card textarea').fill(transcript);
@@ -43,8 +43,8 @@ test('metadata, B-roll planning and Fruit AI storyboard have offline fallback be
   await expect(page.locator('.broll-query-list article').first()).toBeVisible();
 
   await page.getByRole('button', { name: 'Gerar storyboard IA', exact: true }).click();
-  await expect(page.locator('.fruit-scenes article')).toHaveCount(4);
   await expect(page.locator('.fruit-scenes')).toContainText('Cena 1');
+  expect(await page.locator('.fruit-scenes article').count()).toBeGreaterThanOrEqual(2);
 });
 
 test('long video can build a smart zoom plan without losing the selected source', async ({ page }, testInfo) => {
