@@ -196,8 +196,10 @@ export default function EditorV2() {
 
   function updateStartSeconds(value: number) {
     if (!Number.isFinite(value) || duration <= 0) return;
+    const next = clamp(value, 0, Math.max(0, duration - 0.1));
     clearOutput();
-    setTrimStart(clamp(value, 0, Math.max(0, trimEnd - 0.1)));
+    setTrimStart(next);
+    if (trimEnd <= next) setTrimEnd(Math.min(duration, next + 30));
   }
 
   function updateEndSeconds(value: number) {
