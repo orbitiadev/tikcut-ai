@@ -1,11 +1,11 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { resolve } from 'node:path';
 
-const longVideo = resolve(process.cwd(), 'tests/fixtures/long-65min.mp4');
+const longVideo = resolve(process.cwd(), 'tests/fixtures/long-65min.webm');
 
-async function setRange(page: Parameters<typeof test>[0] extends never ? never : any, label: string, value: number) {
+async function setRange(page: Page, label: string, value: number) {
   const locator = page.locator(`input[aria-label="${label}"]`);
   await locator.evaluate((element: HTMLInputElement, next: number) => {
     const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
