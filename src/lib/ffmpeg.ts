@@ -45,38 +45,132 @@ async function withMountedFile<T>(ffmpeg: FFmpeg, file: File, task: (inputPath: 
   }
 }
 
+async function readMp4(ffmpeg: FFmpeg, outputName: string): Promise<Blob> {
+  const data = await ffmpeg.readFile(outputName);
+  const bytes = data instanceof Uint8Array ? data : new TextEncoder().encode(data);
+  if (bytes.byteLength < 1024) throw new Error('O arquivo gerado ficou vazio ou inválido.');
+  return new Blob([bytes.slice().buffer], { type: 'video/mp4' });
+}
+
+async function execWithLogs(ffmpeg: FFmpeg, args: string[]): Promise<{ exitCode: number; tail: string }> {
+  const messages: string[] = [];
+  const listener = ({ message }: { message: string }) => {
+    messages.push(message);
+    if (messages.length > 30) messages.shift();
+  };
+  ffmpeg.on('log', listener);
+  try {
+    const exitCode = await ffmpeg.exec(args);
+    return { exitCode, tail: messages.slice(-8).join(' | ') };
+  } finally {
+    ffmpeg.off('log', listener);
+  }
+}
+
+function validateInterval(start: number, end: number) {
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) throw new Error('Intervalo de corte inválido.');
+  const duration = end - start;
+  if (duration > 600) throw new Error('Para manter a estabilidade no navegador, gere trechos de até 10 minutos por vez. A fonte pode ter mais de 1 hora.');
+  return duration;
+}
+
+export async function exportCutMp4(
+  file: File,
+  start: number,
+  end: number,
+  onProgress: (ratio: number) => void
+): Promise<Blob> {
+  const duration = validateInterval(start, end);
+  const ffmpeg = await getFFmpeg(onProgress);
+  const outputName = `tikcut-cut-${crypto.randomUUID()}.mp4`;
+
+  try {
+    return await withMountedFile(ffmpeg, file, async (inputPath) => {
+      onProgress(0.05);
+      const fast = await execWithLogs(ffmpeg, [
+        '-hide_banner',
+        '-ss', start.toFixed(3),
+        '-i', inputPath,
+        '-t', duration.toFixed(3),
+        '-map', '0:v:0?',
+        '-map', '0:a:0?',
+        '-c', 'copy',
+        '-avoid_negative_ts', 'make_zero',
+        '-movflags', '+faststart',
+        outputName,
+      ]);
+
+      if (fast.exitCode === 0) {
+        try {
+          const blob = await readMp4(ffmpeg, outputName);
+          onProgress(1);
+          return blob;
+        } catch {
+          try { await ffmpeg.deleteFile(outputName); } catch { /* retry below */ }
+        }
+      } else {
+        try { await ffmpeg.deleteFile(outputName); } catch { /* retry below */ }
+      }
+
+      onProgress(0.12);
+      const fallback = await execWithLogs(ffmpeg, [
+        '-hide_banner',
+        '-ss', start.toFixed(3),
+        '-i', inputPath,
+        '-t', duration.toFixed(3),
+        '-map', '0:v:0?',
+        '-map', '0:a:0?',
+        '-c:v', 'libx264',
+        '-preset', 'ultrafast',
+        '-crf', '22',
+        '-c:a', 'aac',
+        '-b:a', '128k',
+        '-movflags', '+faststart',
+        outputName,
+      ]);
+
+      if (fallback.exitCode !== 0) {
+        const detail = fallback.tail || fast.tail;
+        throw new Error(`Não foi possível gerar o corte. FFmpeg encerrou com código ${fallback.exitCode}${detail ? `: ${detail}` : ''}`);
+      }
+
+      const blob = await readMp4(ffmpeg, outputName);
+      onProgress(1);
+      return blob;
+    });
+  } finally {
+    activeProgress = null;
+    try { await ffmpeg.deleteFile(outputName); } catch { /* cleanup best effort */ }
+  }
+}
+
 export async function exportVerticalMp4(
   file: File,
   start: number,
   end: number,
   onProgress: (ratio: number) => void
 ): Promise<Blob> {
-  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) throw new Error('Intervalo de exportação inválido.');
-  const duration = end - start;
-  if (duration > 600) throw new Error('Para manter a estabilidade no navegador, exporte trechos de até 10 minutos por vez. A fonte pode ter mais de 1 hora.');
-
+  const duration = validateInterval(start, end);
   const ffmpeg = await getFFmpeg(onProgress);
-  const outputName = `tikcut-${crypto.randomUUID()}.mp4`;
+  const outputName = `tikcut-vertical-${crypto.randomUUID()}.mp4`;
   try {
     return await withMountedFile(ffmpeg, file, async (inputPath) => {
-      const exitCode = await ffmpeg.exec([
+      const result = await execWithLogs(ffmpeg, [
         '-hide_banner',
         '-ss', start.toFixed(3),
         '-i', inputPath,
         '-t', duration.toFixed(3),
         '-vf', 'scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920',
         '-c:v', 'libx264',
-        '-preset', 'veryfast',
+        '-preset', 'ultrafast',
         '-crf', '23',
         '-c:a', 'aac',
         '-b:a', '160k',
         '-movflags', '+faststart',
         outputName,
       ]);
-      if (exitCode !== 0) throw new Error(`FFmpeg encerrou com código ${exitCode}.`);
-      const data = await ffmpeg.readFile(outputName);
-      const bytes = data instanceof Uint8Array ? data : new TextEncoder().encode(data);
-      return new Blob([bytes.slice().buffer], { type: 'video/mp4' });
+      if (result.exitCode !== 0) throw new Error(`FFmpeg encerrou com código ${result.exitCode}${result.tail ? `: ${result.tail}` : ''}`);
+      return readMp4(ffmpeg, outputName);
     });
   } finally {
     activeProgress = null;
