@@ -20,8 +20,8 @@ jobs:
       - name: Install pinned media QA binaries
         run: |
           npm install --no-save --no-audit --no-fund ffmpeg-static@5.3.0 @derhuerst/ffprobe-static@5.3.0
-          npm approve-scripts --no-allow-scripts-pin ffmpeg-static @derhuerst/ffprobe-static
-          npm rebuild ffmpeg-static @derhuerst/ffprobe-static
+          node node_modules/ffmpeg-static/install.js
+          node node_modules/@derhuerst/ffprobe-static/install.js
           FFMPEG_BIN="$(node -e "process.stdout.write(require('ffmpeg-static'))")"
           FFPROBE_BIN="$(node -e "process.stdout.write(require('@derhuerst/ffprobe-static').path)")"
           echo "FFMPEG_BIN=$FFMPEG_BIN" >> "$GITHUB_ENV"
