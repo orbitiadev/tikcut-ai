@@ -1,3 +1,4 @@
+// Final regression coverage for the real cutting flow.
 import { expect, test } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
 import { existsSync, statSync } from 'node:fs';
