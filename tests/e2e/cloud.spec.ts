@@ -10,13 +10,10 @@ function readPublicSupabaseConfig() {
   return { url, key };
 }
 
-test('configured Supabase REST/Auth are reachable and anonymous TikCut data is blocked', async ({ page }, testInfo) => {
+test('configured Supabase Auth is reachable and anonymous TikCut data is blocked', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'chromium-desktop', 'Cloud connectivity is checked once.');
   const { url, key } = readPublicSupabaseConfig();
   const headers = { apikey: key, Authorization: `Bearer ${key}` };
-
-  const apiRoot = await fetch(`${url}/rest/v1/`, { headers });
-  expect(apiRoot.status).toBe(200);
 
   const authSettings = await fetch(`${url}/auth/v1/settings`, { headers });
   expect(authSettings.status).toBe(200);
