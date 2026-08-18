@@ -4,11 +4,45 @@ import { existsSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const longWebm = resolve(process.cwd(), 'tests/fixtures/long-65min.webm');
+const mockPng = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAFElEQVR42mP8z8AARAwMDAxQAQYAHAABf8sQ6QAAAABJRU5ErkJggg==', 'base64');
 
 async function openStudio(page: import('@playwright/test').Page) {
   await page.goto('/');
   await page.getByRole('button', { name: 'STUDIO PRO', exact: true }).click();
   await expect(page.getByRole('heading', { name: /STUDIO PRO/ })).toBeVisible();
+}
+
+async function mockCommons(page: import('@playwright/test').Page) {
+  await page.route('https://commons.wikimedia.org/w/api.php?**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        query: {
+          pages: {
+            '1': {
+              pageid: 1,
+              title: 'File:TikCut QA B-roll.png',
+              imageinfo: [{
+                url: 'https://mock.tikcut.test/broll.png',
+                thumburl: 'https://mock.tikcut.test/broll.png',
+                descriptionurl: 'https://commons.wikimedia.org/wiki/File:TikCut_QA_B-roll.png',
+                extmetadata: {
+                  ImageDescription: { value: 'TikCut QA image' },
+                  Artist: { value: 'TikCut QA' },
+                  LicenseShortName: { value: 'CC0' },
+                  LicenseUrl: { value: 'https://creativecommons.org/publicdomain/zero/1.0/' },
+                },
+              }],
+            },
+          },
+        },
+      }),
+    });
+  });
+  await page.route('https://mock.tikcut.test/broll.png', async (route) => {
+    await route.fulfill({ status: 200, contentType: 'image/png', body: mockPng });
+  });
 }
 
 function probeDuration(path: string) {
@@ -23,6 +57,7 @@ test('Studio Pro exposes advanced modules and five editable timeline layers', as
   await expect(page.getByText('Auto B-roll licenciado', { exact: false })).toBeVisible();
   await expect(page.getByText('AUTOPILOT completo', { exact: false })).toBeVisible();
   await expect(page.getByText('Criar com IA · Fruit AI', { exact: false })).toBeVisible();
+  await expect(page.getByLabel('Incorporar B-roll')).toBeChecked();
   await expect(page.getByLabel('Timeline profissional multicamada')).toBeVisible();
   for (const label of ['VÍDEO', 'B-ROLL', 'TEXTO', 'ÁUDIO', 'ZOOM/FX']) {
     await expect(page.getByText(label, { exact: true }).first()).toBeVisible();
@@ -88,24 +123,27 @@ test('Studio Pro removes detected silence and produces a shorter MP4', async ({ 
   expect(outputDuration).toBeLessThan(13);
 });
 
-test('Autopilot can render a short vertical edit without cloud AI or Whisper', async ({ page }, testInfo) => {
-  test.skip(testInfo.project.name !== 'chrome-desktop', 'Autopilot render is validated once in branded Chrome.');
+test('Autopilot renders a vertical edit and bakes licensed B-roll into the final MP4', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'chrome-desktop', 'Full Autopilot+B-roll render is validated once in branded Chrome.');
   expect(existsSync(longWebm)).toBeTruthy();
+  await mockCommons(page);
   await openStudio(page);
   await page.locator('.source-card input[type="file"]').setInputFiles(longWebm);
   await expect(page.getByText(/Fonte pronta:/)).toBeVisible({ timeout: 30_000 });
   await page.getByLabel('Studio Pro OUT').fill('123');
   await page.getByLabel('Studio Pro IN').fill('120');
-  await page.locator('.ai-card textarea').fill('Presta atenção agora! Este é um teste curto de edição automática com ritmo e zoom.');
+  await page.locator('.ai-card textarea').fill('Presta atenção agora! Este é um teste curto de edição automática com ritmo, zoom e imagem complementar.');
   await page.getByLabel('Transcrever se necessário').uncheck();
   await page.getByLabel('Remover silêncios').uncheck();
   await page.getByLabel('9:16').check();
   await page.getByLabel('Auto Zoom').check();
+  await page.getByLabel('Incorporar B-roll').check();
 
   await page.getByRole('button', { name: 'EXECUTAR AUTOPILOT', exact: true }).click();
   const resultLink = page.getByLabel('Saída Studio Pro').getByRole('link', { name: 'Baixar resultado' });
-  await expect(resultLink).toBeVisible({ timeout: 4 * 60 * 1000 });
-  await expect(page.getByRole('status')).toContainText('Autopilot storytime pronto');
+  await expect(resultLink).toBeVisible({ timeout: 5 * 60 * 1000 });
+  await expect(page.getByRole('status')).toContainText('Autopilot storytime + B-roll pronto');
+  await expect(page.getByLabel('Timeline profissional multicamada').locator('.item-broll').first()).toBeVisible();
 
   const downloadPromise = page.waitForEvent('download');
   await resultLink.click();
