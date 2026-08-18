@@ -16,39 +16,46 @@ jobs:
       - name: Install app dependencies
         run: npm install --no-audit --no-fund
       - name: Install Chromium for Playwright
-        run: npx playwright install --with-deps chromium
-      - name: Ensure branded Chrome is available for H.264 QA
+        run: npx playwright install chromium
+      - name: Verify branded Chrome for H.264 QA
         run: |
           if command -v google-chrome >/dev/null 2>&1; then
             google-chrome --version
-          elif command -v google-chrome-stable >/dev/null 2>&1; then
-            google-chrome-stable --version
           else
-            npx playwright install chrome
+            google-chrome-stable --version
           fi
-      - name: Install ffmpeg tools
+      - name: Install pinned media QA binaries
         run: |
-          sudo apt-get install -y --no-install-recommends ffmpeg
-          command -v ffmpeg
-          command -v ffprobe
-          ffmpeg -version | sed -n '1p'
+          npm install --no-save --no-audit --no-fund ffmpeg-static@5.3.0 @derhuerst/ffprobe-static@5.3.0
+          npm approve-scripts ffmpeg-static @derhuerst/ffprobe-static
+          npm rebuild ffmpeg-static @derhuerst/ffprobe-static
+          FFMPEG_BIN="$(node -e "process.stdout.write(require('ffmpeg-static'))")"
+          FFPROBE_BIN="$(node -e "process.stdout.write(require('@derhuerst/ffprobe-static').path)")"
+          mkdir -p "$PWD/.qa-bin"
+          ln -sf "$FFMPEG_BIN" "$PWD/.qa-bin/ffmpeg"
+          ln -sf "$FFPROBE_BIN" "$PWD/.qa-bin/ffprobe"
+          echo "$PWD/.qa-bin" >> "$GITHUB_PATH"
+          echo "FFMPEG_BIN=$FFMPEG_BIN" >> "$GITHUB_ENV"
+          echo "FFPROBE_BIN=$FFPROBE_BIN" >> "$GITHUB_ENV"
+          "$FFMPEG_BIN" -version | sed -n '1p'
+          "$FFPROBE_BIN" -version | sed -n '1p'
       - name: Generate 65-minute WebM and H.264 MP4 fixtures
         run: |
           mkdir -p tests/fixtures
-          ffmpeg -hide_banner -loglevel error -y \
+          "$FFMPEG_BIN" -hide_banner -loglevel error -y \
             -f lavfi -i "testsrc2=size=160x90:rate=1" \
             -f lavfi -i "aevalsrc=if(lt(mod(t\,12)\,8)\,0.12*sin(2*PI*440*t)\,0):s=16000:d=3905" \
             -t 3905 -c:v libvpx -deadline realtime -cpu-used 8 -b:v 80k -pix_fmt yuv420p \
             -c:a libopus -b:a 20k -shortest tests/fixtures/long-65min.webm
-          ffmpeg -hide_banner -loglevel error -y \
+          "$FFMPEG_BIN" -hide_banner -loglevel error -y \
             -f lavfi -i "testsrc2=size=160x90:rate=1" \
             -f lavfi -i "aevalsrc=if(lt(mod(t\,12)\,8)\,0.12*sin(2*PI*440*t)\,0):s=16000:d=3905" \
             -t 3905 -c:v libx264 -preset ultrafast -tune zerolatency -b:v 80k -g 30 -pix_fmt yuv420p \
             -c:a aac -b:a 24k -movflags +faststart -shortest tests/fixtures/long-65min-h264.mp4
           echo "WebM fixture:"
-          ffprobe -v error -show_entries format=duration,size -of default=nw=1 tests/fixtures/long-65min.webm
+          "$FFPROBE_BIN" -v error -show_entries format=duration,size -of default=nw=1 tests/fixtures/long-65min.webm
           echo "H.264 MP4 fixture:"
-          ffprobe -v error -show_entries format=duration,size -of default=nw=1 tests/fixtures/long-65min-h264.mp4
+          "$FFPROBE_BIN" -v error -show_entries format=duration,size -of default=nw=1 tests/fixtures/long-65min-h264.mp4
       - name: Typecheck and build
         run: npm run build
       - name: Start production preview
