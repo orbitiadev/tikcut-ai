@@ -11,8 +11,7 @@ function probeDuration(path: string) {
 }
 
 function probeVideoSize(path: string) {
-  const raw = execFileSync('ffprobe', ['-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=width,height', '-of', 'csv=s=x:p=0', path], { encoding: 'utf8' }).trim();
-  return raw;
+  return execFileSync('ffprobe', ['-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=width,height', '-of', 'csv=s=x:p=0', path], { encoding: 'utf8' }).trim();
 }
 
 function probeAudioCodec(path: string) {
@@ -28,6 +27,15 @@ function captionRegionMaxLuma(path: string) {
   let max = 0;
   for (const value of pixels.values()) if (value > max) max = value;
   return max;
+}
+
+async function setRange(page: import('@playwright/test').Page, label: string, value: number) {
+  await page.getByLabel(label).evaluate((element, next) => {
+    const input = element as HTMLInputElement;
+    input.value = String(next);
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  }, value);
 }
 
 test('Finalizer burns captions into a real 1080x1920 MP4 and mixes music', async ({ page }, testInfo) => {
@@ -47,8 +55,8 @@ test('Finalizer burns captions into a real 1080x1920 MP4 and mixes music', async
   await page.getByLabel('Legenda 1 início').fill('0.5');
   await page.getByLabel('Legenda 1 fim').fill('2.5');
   await page.getByLabel('Adicionar música ao vídeo final').setInputFiles(music);
-  await page.getByLabel('Volume da música').fill('0.35');
-  await page.getByLabel('Volume do áudio original').fill('0.55');
+  await setRange(page, 'Volume da música', 0.35);
+  await setRange(page, 'Volume do áudio original', 0.55);
 
   await page.getByTestId('render-final-video').click();
   await expect(page.getByTestId('final-output')).toBeVisible({ timeout: 4 * 60 * 1000 });
