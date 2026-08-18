@@ -63,14 +63,21 @@ jobs:
             -t 6 -c:v libx264 -preset ultrafast -crf 26 -pix_fmt yuv420p \
             -c:a aac -b:a 64k -movflags +faststart -shortest tests/fixtures/short-6s.mp4
           ffmpeg -hide_banner -loglevel error -y \
+            -f lavfi -i "color=c=black:size=360x640:rate=30" \
+            -f lavfi -i "sine=frequency=440:sample_rate=48000" \
+            -t 6 -c:v libvpx -deadline realtime -cpu-used 8 -b:v 160k -pix_fmt yuv420p \
+            -c:a libopus -b:a 48k -shortest tests/fixtures/short-6s.webm
+          ffmpeg -hide_banner -loglevel error -y \
             -f lavfi -i "sine=frequency=220:sample_rate=44100" \
             -t 2 -c:a pcm_s16le tests/fixtures/music-2s.wav
           echo "WebM fixture:"
           ffprobe -v error -show_entries format=duration,size -of default=nw=1 tests/fixtures/long-65min.webm
           echo "H.264 MP4 fixture:"
           ffprobe -v error -show_entries format=duration,size -of default=nw=1 tests/fixtures/long-65min-h264.mp4
-          echo "Finalizer fixture:"
+          echo "Finalizer MP4 fixture:"
           ffprobe -v error -show_entries format=duration,size -of default=nw=1 tests/fixtures/short-6s.mp4
+          echo "Finalizer WebM fixture:"
+          ffprobe -v error -show_entries format=duration,size -of default=nw=1 tests/fixtures/short-6s.webm
       - name: Typecheck and build
         run: npm run build
       - name: Start production preview
