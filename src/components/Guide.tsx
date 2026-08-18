@@ -44,7 +44,7 @@ export default function Guide() {
         </section>
         <section>
           <h2>9. Auto B-roll</h2>
-          <p>Use “Sugerir pontos de B-roll” para gerar termos e momentos. Em seguida pesquise no Wikimedia Commons ou use “Auto preencher timeline”. Cada resultado mostra fonte, autoria/licença quando disponível e pode ser colocado na faixa B-ROLL. Revise a licença da página-fonte antes da publicação.</p>
+          <p>Use “Sugerir pontos de B-roll” para gerar termos e momentos. Em seguida pesquise no Wikimedia Commons ou use “Auto preencher timeline”. Cada resultado mostra fonte, autoria/licença quando disponível e pode ser colocado na faixa B-ROLL. No Autopilot vertical, a opção “Incorporar B-roll no MP4” também pode colocar automaticamente as mídias escolhidas dentro do vídeo final. Se uma fonte externa falhar, o render principal continua.</p>
         </section>
         <section>
           <h2>10. Timeline profissional multicamada</h2>
@@ -52,7 +52,7 @@ export default function Guide() {
         </section>
         <section>
           <h2>11. Autopilot</h2>
-          <p>Escolha Podcast, Storytime, Gaming, Motivacional, Cinematic, Meme ou Satisfying. Ative ou desative transcrição, remoção de silêncios, 9:16 e Auto Zoom. “EXECUTAR AUTOPILOT” prepara o plano editável e renderiza o vídeo local. B-roll e pacote social continuam disponíveis para revisão manual.</p>
+          <p>Escolha Podcast, Storytime, Gaming, Motivacional, Cinematic, Meme ou Satisfying. Ative ou desative transcrição, remoção de silêncios, 9:16, Auto Zoom e B-roll. “EXECUTAR AUTOPILOT” prepara o plano editável, gera o pacote social, procura B-roll licenciado quando ativado e renderiza o MP4. As decisões continuam visíveis na timeline para revisão.</p>
         </section>
         <section>
           <h2>12. Criar com IA · Fruit AI</h2>
