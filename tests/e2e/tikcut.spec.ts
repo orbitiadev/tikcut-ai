@@ -16,7 +16,7 @@ async function setRange(page: Page, label: string, value: number) {
   }, value);
 }
 
-test('editor handles a 65-minute source, silence scan and short MP4 export', async ({ page }, testInfo) => {
+test('editor handles a 65-minute source, silence scan and short 9:16 export', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'chromium-desktop', 'Heavy media QA runs once on desktop Chromium.');
   expect(existsSync(longVideo), `Missing fixture: ${longVideo}`).toBeTruthy();
 
@@ -41,10 +41,10 @@ test('editor handles a 65-minute source, silence scan and short MP4 export', asy
   await page.locator('.sidebar textarea').fill(transcript);
   await page.getByRole('button', { name: 'Analisar melhores cortes' }).click();
   await expect(page.locator('.suggestion').first()).toBeVisible();
-  await page.locator('.suggestion').first().getByRole('button', { name: 'Aplicar corte estimado' }).click();
+  await page.locator('.suggestion').first().getByRole('button', { name: 'Aplicar IN/OUT sugerido' }).click();
   await expect(page.getByRole('status')).toContainText('Sugestão aplicada');
 
-  await page.getByRole('button', { name: 'Detectar silêncios' }).click();
+  await page.getByRole('button', { name: 'Detectar pausas/silêncios' }).click();
   await expect(page.getByRole('status')).toContainText(/pausas longas detectadas/, { timeout: 4 * 60 * 1000 });
   const silenceStatus = await page.getByRole('status').innerText();
   const silenceCount = Number(silenceStatus.match(/(\d+) pausas/)?.[1] ?? 0);
@@ -66,7 +66,8 @@ test('editor handles a 65-minute source, silence scan and short MP4 export', asy
   const exportedDuration = Number(probe.trim());
   expect(exportedDuration).toBeGreaterThan(1.5);
   expect(exportedDuration).toBeLessThan(3.5);
-  await expect(page.getByRole('status')).toContainText('MP4 9:16 exportado');
+  await expect(page.getByRole('status')).toContainText('Vídeo vertical pronto');
+  await expect(page.getByRole('link', { name: 'Baixar vídeo 9:16' })).toBeVisible();
 
   expect(consoleErrors, consoleErrors.join('\n')).toEqual([]);
 });
@@ -138,11 +139,12 @@ test('Storyverse creates continuations, persists them and exports season backup'
   await expect(page.getByText('2 episódios', { exact: false }).first()).toBeVisible();
 });
 
-test('mobile layout exposes both Editor and Storyverse without horizontal crash', async ({ page }, testInfo) => {
+test('mobile layout exposes Editor, Storyverse and Guide without horizontal crash', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'chromium-mobile', 'Mobile-only layout check.');
   await page.goto('/');
   await expect(page.getByRole('button', { name: 'Editor', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'STORYVERSE', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Guia de Uso', exact: true })).toBeVisible();
   const dimensions = await page.evaluate(() => ({ scrollWidth: document.documentElement.scrollWidth, innerWidth: window.innerWidth }));
   expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.innerWidth + 2);
   await page.getByRole('button', { name: 'STORYVERSE', exact: true }).click();
