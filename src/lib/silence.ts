@@ -1,6 +1,10 @@
+import { detectSilencesWithFFmpeg } from './ffmpeg';
 import type { SilenceRange } from './types';
 
-export async function detectSilences(file: File, thresholdDb = -38, minDuration = 0.55): Promise<SilenceRange[]> {
+const LONG_MEDIA_SECONDS = 20 * 60;
+const LARGE_FILE_BYTES = 64 * 1024 * 1024;
+
+async function detectWithWebAudio(file: File, thresholdDb: number, minDuration: number): Promise<SilenceRange[]> {
   const AudioContextCtor = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
   if (!AudioContextCtor) throw new Error('Web Audio API não disponível neste navegador.');
   const context = new AudioContextCtor();
@@ -36,5 +40,27 @@ export async function detectSilences(file: File, thresholdDb = -38, minDuration 
     return ranges;
   } finally {
     await context.close();
+  }
+}
+
+export async function detectSilences(
+  file: File,
+  thresholdDb = -38,
+  minDuration = 0.55,
+  mediaDurationSeconds = 0
+): Promise<SilenceRange[]> {
+  const shouldStream = mediaDurationSeconds >= LONG_MEDIA_SECONDS || file.size >= LARGE_FILE_BYTES;
+  if (shouldStream) return detectSilencesWithFFmpeg(file, thresholdDb, minDuration);
+
+  try {
+    return await detectWithWebAudio(file, thresholdDb, minDuration);
+  } catch (webAudioError) {
+    try {
+      return await detectSilencesWithFFmpeg(file, thresholdDb, minDuration);
+    } catch (ffmpegError) {
+      const primary = webAudioError instanceof Error ? webAudioError.message : 'falha no Web Audio';
+      const fallback = ffmpegError instanceof Error ? ffmpegError.message : 'falha no FFmpeg';
+      throw new Error(`Não foi possível analisar o áudio. Web Audio: ${primary}. FFmpeg: ${fallback}.`);
+    }
   }
 }

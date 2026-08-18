@@ -8,10 +8,19 @@ import type { CaptionStyle, ClipSuggestion, LocalProject, SilenceRange } from '.
 
 const formatTime = (value: number) => {
   const safe = Number.isFinite(value) ? Math.max(0, value) : 0;
-  const m = Math.floor(safe / 60);
-  const s = Math.floor(safe % 60).toString().padStart(2, '0');
-  return `${m}:${s}`;
+  const hours = Math.floor(safe / 3600);
+  const minutes = Math.floor((safe % 3600) / 60);
+  const seconds = Math.floor(safe % 60).toString().padStart(2, '0');
+  if (hours > 0) return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds}`;
+  return `${minutes}:${seconds}`;
 };
+
+const formatBytes = (value: number) => {
+  if (value < 1024 * 1024) return `${Math.max(1, Math.round(value / 1024))} KB`;
+  return `${(value / (1024 * 1024)).toFixed(value >= 100 * 1024 * 1024 ? 0 : 1)} MB`;
+};
+
+type BusyOperation = 'silence' | 'export' | null;
 
 export default function App() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -26,6 +35,7 @@ export default function App() {
   const [silences, setSilences] = useState<SilenceRange[]>([]);
   const [status, setStatus] = useState('Pronto');
   const [progress, setProgress] = useState(0);
+  const [busy, setBusy] = useState<BusyOperation>(null);
   const [projectId] = useState(() => loadLocalProject()?.id ?? crypto.randomUUID());
 
   useEffect(() => {
@@ -33,8 +43,6 @@ export default function App() {
     if (!saved) return;
     setTranscript(saved.transcript);
     setCaptionStyle(saved.captionStyle);
-    setTrimStart(saved.trimStart);
-    setTrimEnd(saved.trimEnd);
   }, []);
 
   useEffect(() => () => { if (url) URL.revokeObjectURL(url); }, [url]);
@@ -54,6 +62,7 @@ export default function App() {
 
   const selectedDuration = Math.max(0, trimEnd - trimStart);
   const currentCaption = transcript.trim() ? transcript.trim().split(/(?<=[.!?])\s+/)[0] : 'Sua legenda aparece aqui';
+  const isLongSource = duration >= 3600;
 
   async function handleFile(next: File | null) {
     if (!next) return;
@@ -64,10 +73,13 @@ export default function App() {
     if (url) URL.revokeObjectURL(url);
     setFile(next);
     setUrl(URL.createObjectURL(next));
+    setDuration(0);
+    setTrimStart(0);
+    setTrimEnd(0);
     setSuggestions([]);
     setSilences([]);
     setProgress(0);
-    setStatus('Vídeo carregado localmente.');
+    setStatus(`Vídeo carregado localmente (${formatBytes(next.size)}). Lendo duração…`);
   }
 
   function analyzeTranscript() {
@@ -82,13 +94,17 @@ export default function App() {
 
   async function analyzeSilence() {
     if (!file) return setStatus('Importe um vídeo primeiro.');
-    setStatus('Analisando áudio localmente…');
+    if (busy) return;
+    setBusy('silence');
+    setStatus(isLongSource ? 'Analisando áudio longo em modo streaming. Isso pode levar alguns minutos…' : 'Analisando áudio localmente…');
     try {
-      const ranges = await detectSilences(file);
+      const ranges = await detectSilences(file, -38, 0.55, duration);
       setSilences(ranges);
       setStatus(`${ranges.length} pausas longas detectadas no áudio.`);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'Falha ao analisar o áudio.');
+    } finally {
+      setBusy(null);
     }
   }
 
@@ -103,7 +119,10 @@ export default function App() {
 
   async function exportClip() {
     if (!file || selectedDuration <= 0) return setStatus('Defina um intervalo válido antes de exportar.');
-    setStatus('Carregando motor FFmpeg e renderizando no seu dispositivo…');
+    if (selectedDuration > 600) return setStatus('Selecione até 10 minutos por exportação. A fonte pode ter mais de 1 hora sem problema.');
+    if (busy) return;
+    setBusy('export');
+    setStatus(isLongSource ? 'Montando somente o trecho selecionado da fonte longa…' : 'Carregando motor FFmpeg e renderizando no seu dispositivo…');
     setProgress(0);
     try {
       const blob = await exportVerticalMp4(file, trimStart, trimEnd, setProgress);
@@ -116,6 +135,9 @@ export default function App() {
       setStatus('MP4 9:16 exportado. O vídeo não foi enviado a um servidor.');
     } catch (error) {
       setStatus(error instanceof Error ? `Falha na exportação: ${error.message}` : 'Falha na exportação.');
+    } finally {
+      setBusy(null);
+      setProgress(0);
     }
   }
 
@@ -150,8 +172,9 @@ export default function App() {
             <div><span>Duração</span><b>{formatTime(duration)}</b></div>
             <div><span>Corte</span><b>{formatTime(selectedDuration)}</b></div>
           </div>
-          <button className="button secondary" onClick={analyzeSilence}>Detectar silêncios</button>
-          <button className="button secondary" onClick={() => void cloudSync()}>Sincronizar projeto</button>
+          {isLongSource && <p className="helper">Fonte longa detectada. O TikCut mantém o arquivo montado sem copiá-lo inteiro para a memória e exporta somente o trecho selecionado.</p>}
+          <button className="button secondary" disabled={Boolean(busy)} onClick={analyzeSilence}>{busy === 'silence' ? 'Analisando áudio…' : 'Detectar silêncios'}</button>
+          <button className="button secondary" disabled={Boolean(busy)} onClick={() => void cloudSync()}>Sincronizar projeto</button>
 
           <div className="section-title spaced">Legenda</div>
           <div className="segmented">
@@ -166,14 +189,16 @@ export default function App() {
         <section className="stage card">
           <div className="stage-toolbar">
             <div><b>Preview TikTok</b><span>9:16 · área segura</span></div>
-            <span className="pill muted">1080 × 1920</span>
+            <div className="top-actions"><span className="pill muted">1080 × 1920</span>{isLongSource && <span className="pill good">1h+ OK</span>}</div>
           </div>
           <div className="phone-frame">
             {url ? (
               <video ref={videoRef} src={url} controls playsInline onLoadedMetadata={(e) => {
-                const d = e.currentTarget.duration || 0;
+                const d = Number.isFinite(e.currentTarget.duration) ? e.currentTarget.duration : 0;
                 setDuration(d);
-                setTrimEnd((current) => current > 0 ? Math.min(current, d) : d);
+                setTrimStart(0);
+                setTrimEnd(d > 0 ? Math.min(d, 60) : 0);
+                setStatus(d >= 3600 ? `Fonte longa pronta: ${formatTime(d)}. Corte inicial limitado a 1:00 para evitar renderização acidental da hora inteira.` : `Vídeo pronto: ${formatTime(d)}.`);
               }} />
             ) : <div className="empty-preview"><div>9:16</div><p>Importe um vídeo para começar</p></div>}
             <div className={`caption ${captionStyle}`}>{currentCaption.slice(0, 120)}</div>
@@ -182,14 +207,14 @@ export default function App() {
 
           <div className="timeline-panel">
             <div className="timeline-labels"><span>IN {formatTime(trimStart)}</span><span>OUT {formatTime(trimEnd)}</span></div>
-            <label>Início<input type="range" min="0" max={Math.max(1, duration)} step="0.1" value={Math.min(trimStart, Math.max(1, duration))} onChange={(e) => setTrimStart(Math.min(Number(e.target.value), trimEnd - 0.1))} /></label>
-            <label>Fim<input type="range" min="0" max={Math.max(1, duration)} step="0.1" value={Math.min(trimEnd, Math.max(1, duration))} onChange={(e) => setTrimEnd(Math.max(Number(e.target.value), trimStart + 0.1))} /></label>
+            <label>Início<input aria-label="Início" type="range" min="0" max={Math.max(1, duration)} step="0.1" value={Math.min(trimStart, Math.max(1, duration))} onChange={(e) => setTrimStart(Math.max(0, Math.min(Number(e.target.value), Math.max(0, trimEnd - 0.1))))} /></label>
+            <label>Fim<input aria-label="Fim" type="range" min="0" max={Math.max(1, duration)} step="0.1" value={Math.min(trimEnd, Math.max(1, duration))} onChange={(e) => setTrimEnd(Math.min(Math.max(Number(e.target.value), trimStart + 0.1), Math.max(1, duration)))} /></label>
             {silences.length > 0 && <div className="silence-strip">{silences.slice(0, 8).map((s, i) => <button key={i} onClick={() => { setTrimStart(s.start); setTrimEnd(s.end); }}>Pausa {formatTime(s.start)}–{formatTime(s.end)}</button>)}</div>}
           </div>
 
           <div className="export-row">
-            <div className="status"><span className="dot" />{status}</div>
-            <button className="button export" disabled={!file || selectedDuration <= 0} onClick={() => void exportClip()}>{progress > 0 && progress < 1 ? `Render ${Math.round(progress * 100)}%` : 'Exportar MP4 9:16'}</button>
+            <div className="status" role="status"><span className="dot" />{status}</div>
+            <button className="button export" disabled={!file || selectedDuration <= 0 || Boolean(busy)} onClick={() => void exportClip()}>{busy === 'export' && progress > 0 ? `Render ${Math.round(progress * 100)}%` : busy === 'export' ? 'Preparando render…' : 'Exportar MP4 9:16'}</button>
           </div>
         </section>
 
@@ -213,7 +238,7 @@ export default function App() {
         </aside>
       </main>
 
-      <footer><span>Processamento de vídeo e análise de silêncio ficam no dispositivo.</span><span>v0.1.0 · uso pessoal</span></footer>
+      <footer><span>Processamento de vídeo e análise de silêncio ficam no dispositivo.</span><span>v0.1.1 · uso pessoal</span></footer>
     </div>
   );
 }
