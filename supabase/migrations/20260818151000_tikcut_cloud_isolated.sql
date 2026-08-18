@@ -16,6 +16,7 @@ create index if not exists tikcut_projects_user_updated_idx
 alter table public.tikcut_projects enable row level security;
 
 revoke all on public.tikcut_projects from anon;
+revoke all on public.tikcut_projects from authenticated;
 grant select, insert, update, delete on public.tikcut_projects to authenticated;
 
 drop policy if exists tikcut_projects_select_own on public.tikcut_projects;
