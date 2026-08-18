@@ -4,6 +4,7 @@ import { execFileSync } from 'node:child_process';
 import { resolve } from 'node:path';
 
 const longVideo = resolve(process.cwd(), 'tests/fixtures/long-65min.webm');
+const ffprobeBin = process.env.FFPROBE_BIN || 'ffprobe';
 
 async function setRange(page: Page, label: string, value: number) {
   const locator = page.locator(`input[aria-label="${label}"]`);
@@ -61,7 +62,7 @@ test('editor handles a 65-minute source, silence scan and short MP4 export', asy
   expect(path).toBeTruthy();
   expect(download.suggestedFilename()).toMatch(/\.mp4$/);
   expect(statSync(path!).size).toBeGreaterThan(10_000);
-  const probe = execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'default=nk=1:nw=1', path!], { encoding: 'utf8' });
+  const probe = execFileSync(ffprobeBin, ['-v', 'error', '-show_entries', 'format=duration', '-of', 'default=nk=1:nw=1', path!], { encoding: 'utf8' });
   const exportedDuration = Number(probe.trim());
   expect(exportedDuration).toBeGreaterThan(1.5);
   expect(exportedDuration).toBeLessThan(3.5);
