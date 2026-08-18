@@ -78,7 +78,9 @@ function compactAssets(assets: BrollAsset[]) {
   const deduped: BrollAsset[] = [];
   const seen = new Set<string>();
   for (const asset of [...assets].sort((a, b) => a.start - b.start || b.end - a.end)) {
-    const key = `${asset.sourcePage || ''}|${asset.label}`;
+    // Prefer the source page as the identity so the same licensed image is not
+    // decoded repeatedly just because different transcript keywords selected it.
+    const key = asset.sourcePage || asset.label;
     if (seen.has(key)) continue;
     seen.add(key);
     const overlaps = deduped.some((existing) => asset.start < existing.end - 0.12 && asset.end > existing.start + 0.12);
@@ -125,10 +127,10 @@ export async function overlayBrollOnVerticalVideo(
       const name = `broll-${crypto.randomUUID()}.${imageExtension(asset.blob)}`;
       imageNames.push(name);
       await ffmpeg.writeFile(name, new Uint8Array(await asset.blob.arrayBuffer()));
-      // Static B-roll only needs one source frame per second. Overlay framesync holds
-      // the last image frame while the 30-fps base video continues, avoiding hundreds
-      // of redundant 1080x1920 image scale operations in WebAssembly.
-      args.push('-loop', '1', '-framerate', '1', '-t', Math.max(0.2, total).toFixed(3), '-i', name);
+      // A still image is a single-frame input. The overlay filter repeats the last
+      // decoded frame only while it is enabled. This avoids the infinite image-loop
+      // demuxers that could keep ffmpeg.wasm alive indefinitely in branded Chrome.
+      args.push('-i', name);
     }
 
     const filters: string[] = ['[0:v]setpts=PTS-STARTPTS[base0]'];
@@ -138,7 +140,7 @@ export async function overlayBrollOnVerticalVideo(
       const prepared = `br${index}`;
       const output = `mix${index}`;
       filters.push(`[${inputIndex}:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,format=yuv420p,setpts=PTS-STARTPTS[${prepared}]`);
-      filters.push(`[${current}][${prepared}]overlay=0:0:enable='between(t,${asset.start.toFixed(3)},${asset.end.toFixed(3)})':eof_action=repeat:shortest=0[${output}]`);
+      filters.push(`[${current}][${prepared}]overlay=0:0:enable='between(t,${asset.start.toFixed(3)},${asset.end.toFixed(3)})':eof_action=repeat:repeatlast=1:shortest=0[${output}]`);
       current = output;
     });
 
