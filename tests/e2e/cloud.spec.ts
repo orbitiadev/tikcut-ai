@@ -13,7 +13,7 @@ function readPublicSupabaseConfig() {
 test('configured Supabase is reachable and anonymous TikCut data is blocked', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'chromium-desktop', 'Cloud connectivity is checked once.');
   const { url, key } = readPublicSupabaseConfig();
-  const headers = { apikey: key, Authorization: `Bearer ${key}` };
+  const headers = { apikey: key };
 
   const apiRoot = await fetch(`${url}/rest/v1/`, { headers });
   expect(apiRoot.status).toBe(200);
