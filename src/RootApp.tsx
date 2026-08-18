@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import EditorV2 from './components/EditorV2';
+import StudioPro from './components/StudioPro';
 import Storyverse from './components/Storyverse';
 import Guide from './components/Guide';
 import './storyverse.css';
 import './editor-v2.css';
+import './studio-pro.css';
 
-type Area = 'editor' | 'storyverse' | 'guide';
+type Area = 'editor' | 'studio-pro' | 'storyverse' | 'guide';
 
 export default function RootApp() {
   const [area, setArea] = useState<Area>('editor');
@@ -14,10 +16,12 @@ export default function RootApp() {
     <>
       <div className="app-mode-switch" role="navigation" aria-label="Áreas do TikCut AI">
         <button className={area === 'editor' ? 'active' : ''} onClick={() => setArea('editor')}>Editor</button>
+        <button className={area === 'studio-pro' ? 'active' : ''} onClick={() => setArea('studio-pro')}>STUDIO PRO</button>
         <button className={area === 'storyverse' ? 'active' : ''} onClick={() => setArea('storyverse')}>STORYVERSE</button>
         <button className={area === 'guide' ? 'active' : ''} onClick={() => setArea('guide')}>Guia de Uso</button>
       </div>
       {area === 'editor' && <EditorV2 />}
+      {area === 'studio-pro' && <StudioPro />}
       {area === 'guide' && <Guide />}
       {area === 'storyverse' && (
         <div className="storyverse-page app-shell">
