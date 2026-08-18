@@ -100,6 +100,14 @@ export default function ProfessionalTimeline({ timeline, setTimeline, onSeek }: 
         {selected ? (
           <>
             <span>Selecionado: <b>{selected.label}</b></span>
+            {selected.track === 'text' && (
+              <input
+                aria-label="Texto selecionado na timeline"
+                value={selected.text ?? selected.label}
+                onChange={(event) => patchItem(selected.id, { text: event.target.value, label: event.target.value.slice(0, 32) || 'Texto' })}
+                placeholder="Edite o texto"
+              />
+            )}
             <button onClick={() => resizeSelected('start', -0.25)}>IN -0,25</button>
             <button onClick={() => resizeSelected('start', 0.25)}>IN +0,25</button>
             <button onClick={() => resizeSelected('end', -0.25)}>OUT -0,25</button>
