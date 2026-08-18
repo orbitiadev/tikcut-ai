@@ -57,7 +57,7 @@ test('Studio Pro exposes advanced modules and five editable timeline layers', as
   await expect(page.getByText('Auto B-roll licenciado', { exact: false })).toBeVisible();
   await expect(page.getByText('AUTOPILOT completo', { exact: false })).toBeVisible();
   await expect(page.getByText('Criar com IA · Fruit AI', { exact: false })).toBeVisible();
-  await expect(page.getByLabel('Incorporar B-roll')).toBeChecked();
+  await expect(page.getByRole('checkbox', { name: 'Incorporar B-roll', exact: true })).toBeChecked();
   await expect(page.getByLabel('Timeline profissional multicamada')).toBeVisible();
   for (const label of ['VÍDEO', 'B-ROLL', 'TEXTO', 'ÁUDIO', 'ZOOM/FX']) {
     await expect(page.getByText(label, { exact: true }).first()).toBeVisible();
@@ -88,9 +88,9 @@ test('long video can build a smart zoom plan without losing the selected source'
   await openStudio(page);
   await page.locator('.source-card input[type="file"]').setInputFiles(longWebm);
   await expect(page.getByText(/Fonte pronta:/)).toBeVisible({ timeout: 30_000 });
-  await page.getByLabel('Studio Pro OUT').fill('123');
-  await page.getByLabel('Studio Pro IN').fill('120');
-  await expect(page.getByText('Trecho').locator('..')).toContainText('0:03');
+  await page.getByLabel('Studio Pro OUT', { exact: true }).fill('123');
+  await page.getByLabel('Studio Pro IN', { exact: true }).fill('120');
+  await expect(page.locator('.pro-stats')).toContainText('Trecho 0:03');
   await page.getByRole('button', { name: 'Planejar Auto Zoom', exact: true }).click();
   await expect(page.locator('.zoom-list span').first()).toBeVisible();
   await expect(page.getByRole('status')).toContainText('movimentos de Auto Zoom');
@@ -103,9 +103,9 @@ test('Studio Pro removes detected silence and produces a shorter MP4', async ({ 
   await openStudio(page);
   await page.locator('.source-card input[type="file"]').setInputFiles(longWebm);
   await expect(page.getByText(/Fonte pronta:/)).toBeVisible({ timeout: 30_000 });
-  await page.getByLabel('Studio Pro OUT').fill('14');
-  await page.getByLabel('Studio Pro IN').fill('0');
-  await page.getByLabel('Gerar saída vertical 9:16').uncheck();
+  await page.getByLabel('Studio Pro OUT', { exact: true }).fill('14');
+  await page.getByLabel('Studio Pro IN', { exact: true }).fill('0');
+  await page.getByRole('checkbox', { name: 'Gerar saída vertical 9:16', exact: true }).uncheck();
 
   await page.getByRole('button', { name: 'Detectar todos os silêncios', exact: true }).click();
   await expect(page.getByRole('status')).toContainText('silêncios detectados', { timeout: 3 * 60 * 1000 });
@@ -130,14 +130,14 @@ test('Autopilot renders a vertical edit and bakes licensed B-roll into the final
   await openStudio(page);
   await page.locator('.source-card input[type="file"]').setInputFiles(longWebm);
   await expect(page.getByText(/Fonte pronta:/)).toBeVisible({ timeout: 30_000 });
-  await page.getByLabel('Studio Pro OUT').fill('123');
-  await page.getByLabel('Studio Pro IN').fill('120');
+  await page.getByLabel('Studio Pro OUT', { exact: true }).fill('123');
+  await page.getByLabel('Studio Pro IN', { exact: true }).fill('120');
   await page.locator('.ai-card textarea').fill('Presta atenção agora! Este é um teste curto de edição automática com ritmo, zoom e imagem complementar.');
-  await page.getByLabel('Transcrever se necessário').uncheck();
-  await page.getByLabel('Remover silêncios').uncheck();
-  await page.getByLabel('9:16').check();
-  await page.getByLabel('Auto Zoom').check();
-  await page.getByLabel('Incorporar B-roll').check();
+  await page.getByRole('checkbox', { name: 'Transcrever se necessário', exact: true }).uncheck();
+  await page.getByRole('checkbox', { name: 'Remover silêncios', exact: true }).uncheck();
+  await page.getByRole('checkbox', { name: '9:16', exact: true }).check();
+  await page.getByRole('checkbox', { name: 'Auto Zoom', exact: true }).check();
+  await page.getByRole('checkbox', { name: 'Incorporar B-roll', exact: true }).check();
 
   await page.getByRole('button', { name: 'EXECUTAR AUTOPILOT', exact: true }).click();
   const resultLink = page.getByLabel('Saída Studio Pro').getByRole('link', { name: 'Baixar resultado' });
