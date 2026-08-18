@@ -9,6 +9,8 @@ type LanguageModelApi = {
   create: (options?: unknown) => Promise<LanguageModelSession>;
 };
 
+type ChromePromptLanguage = 'en' | 'es';
+
 const STOPWORDS = new Set([
   'a','o','as','os','um','uma','uns','umas','de','da','do','das','dos','em','no','na','nos','nas','e','ou','que','por','para','com','sem','como','mais','menos','muito','muita','muitos','muitas','eu','você','voce','ele','ela','eles','elas','isso','isto','esse','essa','este','esta','se','já','ja','não','nao','sim','ao','aos','à','às','sobre','entre','até','ate','ser','ter','foi','são','sao','é','e','the','and','for','with','from','this','that','you','your','are','was','were','have','has','had','but','not','into','about'
 ]);
@@ -18,39 +20,49 @@ function languageModelApi(): LanguageModelApi | null {
   return value ?? null;
 }
 
+function detectChromePromptLanguage(text: string): ChromePromptLanguage | 'unsupported' {
+  const lower = ` ${text.toLowerCase()} `;
+  const portugueseSignals = [' você ', ' voce ', ' não ', ' nao ', ' que ', ' para ', ' uma ', ' esse ', ' essa ', ' isso ', ' agora ', ' vídeo ', ' video ', ' também ', ' tambem ', ' então ', ' entao '];
+  const spanishSignals = [' que ', ' para ', ' una ', ' este ', ' esta ', ' ahora ', ' vídeo ', ' video ', ' también ', ' tambien ', ' entonces ', ' puedes ', ' porque '];
+  const portugueseScore = portugueseSignals.reduce((score, token) => score + (lower.includes(token) ? 1 : 0), /[ãõç]/i.test(text) ? 3 : 0);
+  const spanishScore = spanishSignals.reduce((score, token) => score + (lower.includes(token) ? 1 : 0), /[ñ¿¡]/i.test(text) ? 3 : 0);
+  if (portugueseScore >= 3 && portugueseScore > spanishScore) return 'unsupported';
+  if (spanishScore >= 3) return 'es';
+  return 'en';
+}
+
+function promptOptions(language: ChromePromptLanguage) {
+  return {
+    expectedInputs: [{ type: 'text', languages: [language] }],
+    expectedOutputs: [{ type: 'text', languages: [language] }],
+  };
+}
+
 export async function getBrowserAiAvailability() {
   const api = languageModelApi();
   if (!api) return 'unavailable';
-  const options = {
-    expectedInputs: [{ type: 'text', languages: ['pt', 'en', 'es'] }],
-    expectedOutputs: [{ type: 'text', languages: ['pt', 'en', 'es'] }],
-  };
   try {
-    return await api.availability(options);
+    return await api.availability(promptOptions('en'));
   } catch {
-    try { return await api.availability(); } catch { return 'unavailable'; }
+    return 'unavailable';
   }
 }
 
-async function promptBrowserAi(prompt: string): Promise<string | null> {
+async function promptBrowserAi(prompt: string, sourceText: string): Promise<string | null> {
   const api = languageModelApi();
   if (!api) return null;
-  const availability = await getBrowserAiAvailability();
-  if (availability === 'unavailable') return null;
-  const options = {
-    expectedInputs: [{ type: 'text', languages: ['pt', 'en', 'es'] }],
-    expectedOutputs: [{ type: 'text', languages: ['pt', 'en', 'es'] }],
-  };
+  const language = detectChromePromptLanguage(sourceText);
+  // Chrome's current Prompt API language set does not include pt-BR. Do not
+  // pretend Gemini Nano handled Portuguese: use the deterministic local path.
+  if (language === 'unsupported') return null;
+  const options = promptOptions(language);
   try {
+    const availability = await api.availability(options);
+    if (availability === 'unavailable') return null;
     const session = await api.create(options);
     return await session.prompt(prompt);
   } catch {
-    try {
-      const session = await api.create();
-      return await session.prompt(prompt);
-    } catch {
-      return null;
-    }
+    return null;
   }
 }
 
@@ -109,7 +121,7 @@ function fallbackMetadata(text: string): SocialMetadata {
 export async function generateSocialMetadata(text: string): Promise<SocialMetadata> {
   const fallback = fallbackMetadata(text);
   if (!text.trim()) return fallback;
-  const raw = await promptBrowserAi(`Você é um estrategista de vídeos curtos. Analise a transcrição abaixo e responda SOMENTE JSON válido com esta estrutura: {"titles":[5 títulos curtos],"description":"descrição de até 350 caracteres","hashtags":[6 hashtags relevantes],"hooks":[4 hooks fortes]}. Não prometa viralização e não invente fatos. Idioma principal: português do Brasil. TRANSCRIÇÃO:\n${text.slice(0, 9000)}`);
+  const raw = await promptBrowserAi(`Analyze the short-video transcript below. Reply ONLY with valid JSON: {"titles":[5 short titles],"description":"up to 350 characters","hashtags":[6 relevant hashtags],"hooks":[4 strong hooks]}. Use the same language as the transcript. Never promise virality and never invent facts. TRANSCRIPT:\n${text.slice(0, 9000)}`, text);
   const parsed = extractJson<{ titles?: unknown; description?: unknown; hashtags?: unknown; hooks?: unknown }>(raw);
   if (!parsed) return fallback;
   const titles = Array.isArray(parsed.titles) ? parsed.titles.filter((v): v is string => typeof v === 'string').slice(0, 5) : fallback.titles;
@@ -143,7 +155,7 @@ function fallbackBroll(text: string, chunks: TranscriptChunk[], duration: number
 export async function generateBrollQueries(text: string, chunks: TranscriptChunk[], duration: number): Promise<BrollQuery[]> {
   const fallback = fallbackBroll(text, chunks, duration);
   if (!text.trim()) return fallback;
-  const raw = await promptBrowserAi(`Analise esta transcrição de vídeo curto e escolha até 6 momentos em que B-roll visual realmente ajuda. Responda SOMENTE JSON válido: {"items":[{"query":"termo visual pesquisável em Wikimedia Commons, em inglês quando ajudar","reason":"motivo curto","start":0,"end":3}]}. Os tempos devem ficar entre 0 e ${Math.max(1, duration).toFixed(1)} segundos. Não invente fatos. TRANSCRIÇÃO:\n${text.slice(0, 8500)}`);
+  const raw = await promptBrowserAi(`Analyze this short-video transcript and choose up to 6 moments where visual B-roll materially helps. Reply ONLY with valid JSON: {"items":[{"query":"visual search term for Wikimedia Commons, preferably English when useful","reason":"short reason","start":0,"end":3}]}. Keep times between 0 and ${Math.max(1, duration).toFixed(1)} seconds. Never invent facts. TRANSCRIPT:\n${text.slice(0, 8500)}`, text);
   const parsed = extractJson<{ items?: Array<{ query?: unknown; reason?: unknown; start?: unknown; end?: unknown }> }>(raw);
   if (!parsed?.items?.length) return fallback;
   const result = parsed.items.flatMap((item) => {
@@ -180,7 +192,7 @@ function fallbackFruitPlan(prompt: string): FruitAiPlan {
 export async function generateFruitPlan(prompt: string): Promise<FruitAiPlan> {
   const fallback = fallbackFruitPlan(prompt);
   if (!prompt.trim()) return fallback;
-  const raw = await promptBrowserAi(`Você é diretor de vídeos satisfying 9:16. A partir do pedido abaixo, crie um storyboard curto com 4 cenas que possa ser montado com imagens reais/licenciadas como fallback quando geração visual sintética não estiver disponível. Responda SOMENTE JSON válido: {"title":"...","hook":"...","scenes":[{"prompt":"descrição cinematográfica","searchQuery":"termo visual pesquisável","caption":"texto curto","duration":2.5}],"outro":"..."}. PEDIDO:\n${prompt.slice(0, 3000)}`);
+  const raw = await promptBrowserAi(`Create a short 9:16 satisfying-video storyboard from the request below. The plan must also work with licensed real images as a fallback when synthetic visual generation is unavailable. Reply ONLY with valid JSON: {"title":"...","hook":"...","scenes":[{"prompt":"cinematic description","searchQuery":"visual search term","caption":"short text","duration":2.5}],"outro":"..."}. Use the same language as the request. REQUEST:\n${prompt.slice(0, 3000)}`, prompt);
   const parsed = extractJson<FruitAiPlan>(raw);
   if (!parsed || !Array.isArray(parsed.scenes) || parsed.scenes.length < 2) return fallback;
   return {
