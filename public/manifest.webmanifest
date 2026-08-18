@@ -1,0 +1,9 @@
+{
+  "name": "TikCut AI",
+  "short_name": "TikCut",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#07070a",
+  "theme_color": "#07070a",
+  "description": "Editor pessoal de cortes para TikTok"
+}
