@@ -75,6 +75,6 @@ test('guide explains only functions that exist in the current app', async ({ pag
   await page.goto('/');
   await page.getByRole('button', { name: 'Guia de Uso' }).click();
   await expect(page.getByRole('heading', { name: /Como usar o TikCut AI/ })).toBeVisible();
-  await expect(page.getByRole('heading', { name: /Cortar o vídeo/ })).toBeVisible();
-  await expect(page.getByText(/Funções do guia antigo que ainda não existem/)).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Cortar e baixar/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Limites atuais que o TikCut mostra sem fingir/ })).toBeVisible();
 });

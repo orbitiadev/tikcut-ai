@@ -4,6 +4,10 @@ on:
   pull_request:
   workflow_dispatch:
 
+concurrency:
+  group: browser-e2e-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   browser-qa:
     runs-on: ubuntu-latest
@@ -27,8 +31,16 @@ jobs:
             npx playwright install chrome
           fi
       - name: Install ffmpeg tools
+        env:
+          DEBIAN_FRONTEND: noninteractive
         run: |
-          sudo apt-get install -y --no-install-recommends ffmpeg
+          for attempt in 1 2 3; do
+            if sudo apt-get -o Acquire::Retries=3 install -y --no-install-recommends ffmpeg; then
+              break
+            fi
+            if [ "$attempt" = "3" ]; then exit 1; fi
+            sleep $((attempt * 5))
+          done
           command -v ffmpeg
           command -v ffprobe
           ffmpeg -version | sed -n '1p'
