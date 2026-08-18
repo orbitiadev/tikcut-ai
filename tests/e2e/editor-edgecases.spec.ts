@@ -5,9 +5,10 @@ const longVideo = resolve(process.cwd(), 'tests/fixtures/long-65min.webm');
 
 test('editor guards actions before a valid video is loaded', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Detectar silêncios' }).click();
+  await page.getByRole('button', { name: 'Detectar pausas/silêncios' }).click();
   await expect(page.getByRole('status')).toContainText('Importe um vídeo primeiro');
   await expect(page.getByRole('button', { name: 'Exportar MP4 9:16' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Cortar vídeo' })).toBeDisabled();
 });
 
 test('editor rejects non-video files without crashing', async ({ page }) => {
@@ -19,9 +20,10 @@ test('editor rejects non-video files without crashing', async ({ page }) => {
   });
   await expect(page.getByRole('status')).toContainText('Selecione um arquivo de vídeo válido');
   await expect(page.getByRole('button', { name: 'Exportar MP4 9:16' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Cortar vídeo' })).toBeDisabled();
 });
 
-test('long source prevents accidental export longer than ten minutes', async ({ page }, testInfo) => {
+test('long source prevents accidental output longer than ten minutes', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'chromium-desktop', 'Long media edge case runs once on desktop Chromium.');
   await page.goto('/');
   await page.locator('input[type="file"]').setInputFiles(longVideo);
@@ -35,8 +37,10 @@ test('long source prevents accidental export longer than ten minutes', async ({ 
     element.dispatchEvent(new Event('change', { bubbles: true }));
   });
 
+  await page.getByRole('button', { name: 'Cortar vídeo' }).click();
+  await expect(page.getByRole('status')).toContainText('até 10 minutos por corte');
   await page.getByRole('button', { name: 'Exportar MP4 9:16' }).click();
-  await expect(page.getByRole('status')).toContainText('até 10 minutos por exportação');
+  await expect(page.getByRole('status')).toContainText('até 10 minutos por corte');
 });
 
 test('caption styles and transcript scoring remain interactive', async ({ page }) => {
@@ -59,7 +63,7 @@ test('Storyverse navigation can switch back to editor repeatedly', async ({ page
   await page.getByRole('button', { name: 'STORYVERSE', exact: true }).click();
   await expect(page.getByText('STORYVERSE', { exact: true }).first()).toBeVisible();
   await page.getByRole('button', { name: 'Editor', exact: true }).click();
-  await expect(page.getByText('AutoCut Ranking', { exact: true })).toBeVisible();
+  await expect(page.getByText('3 · AutoCut por texto', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'STORYVERSE', exact: true }).click();
   await expect(page.getByText('STORYVERSE', { exact: true }).first()).toBeVisible();
 });
