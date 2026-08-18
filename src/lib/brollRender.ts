@@ -74,6 +74,21 @@ function projectAssets(assets: BrollAsset[], sourceStart: number, sourceEnd: num
   });
 }
 
+function compactAssets(assets: BrollAsset[]) {
+  const deduped: BrollAsset[] = [];
+  const seen = new Set<string>();
+  for (const asset of [...assets].sort((a, b) => a.start - b.start || b.end - a.end)) {
+    const key = `${asset.sourcePage || ''}|${asset.label}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const overlaps = deduped.some((existing) => asset.start < existing.end - 0.12 && asset.end > existing.start + 0.12);
+    if (overlaps) continue;
+    deduped.push(asset);
+    if (deduped.length >= 4) break;
+  }
+  return deduped;
+}
+
 async function execWithLogs(ffmpeg: FFmpeg, args: string[]) {
   const lines: string[] = [];
   const listener = ({ message }: { message: string }) => { lines.push(message); if (lines.length > 50) lines.shift(); };
@@ -95,7 +110,8 @@ export async function overlayBrollOnVerticalVideo(
   removeSilence: boolean,
   onProgress: (ratio: number) => void,
 ): Promise<Blob> {
-  const projected = projectAssets(assets, sourceStart, sourceEnd, silences, removeSilence).slice(0, 6);
+  const total = outputDuration(sourceStart, sourceEnd, silences, removeSilence);
+  const projected = compactAssets(projectAssets(assets, sourceStart, sourceEnd, silences, removeSilence));
   if (!projected.length) return baseVideo;
 
   const ffmpeg = await getCompositor(onProgress);
@@ -109,7 +125,10 @@ export async function overlayBrollOnVerticalVideo(
       const name = `broll-${crypto.randomUUID()}.${imageExtension(asset.blob)}`;
       imageNames.push(name);
       await ffmpeg.writeFile(name, new Uint8Array(await asset.blob.arrayBuffer()));
-      args.push('-loop', '1', '-framerate', '30', '-i', name);
+      // Static B-roll only needs one source frame per second. Overlay framesync holds
+      // the last image frame while the 30-fps base video continues, avoiding hundreds
+      // of redundant 1080x1920 image scale operations in WebAssembly.
+      args.push('-loop', '1', '-framerate', '1', '-t', Math.max(0.2, total).toFixed(3), '-i', name);
     }
 
     const filters: string[] = ['[0:v]setpts=PTS-STARTPTS[base0]'];
@@ -123,12 +142,12 @@ export async function overlayBrollOnVerticalVideo(
       current = output;
     });
 
-    const total = outputDuration(sourceStart, sourceEnd, silences, removeSilence);
     args.push(
       '-filter_complex', filters.join(';'),
       '-map', `[${current}]`, '-map', '0:a:0?',
       '-t', Math.max(0.1, total).toFixed(3),
-      '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '22', '-pix_fmt', 'yuv420p',
+      '-r', '30',
+      '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '23', '-pix_fmt', 'yuv420p',
       '-c:a', 'copy', '-movflags', '+faststart', outputName,
     );
 
