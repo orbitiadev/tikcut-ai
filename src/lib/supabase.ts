@@ -1,7 +1,10 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
-const url = (import.meta.env.VITE_SUPABASE_URL as string | undefined) || 'https://yhoawrgdhxsbyrrcgdtg.supabase.co';
-const key = (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined) || 'sb_publishable_SH0pkAs7eLUukmXujbhTIw_oCJjFcWT';
+const fallbackUrl = 'https://msjnvqwtguakmoaqlhvo.supabase.co';
+const fallbackPublishableKey = 'sb_publishable_fO2-R7IHb7juhewrFinkKA_uC_LShmZ';
+
+const url = (import.meta.env.VITE_SUPABASE_URL as string | undefined) || fallbackUrl;
+const key = (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined) || fallbackPublishableKey;
 
 export const supabase: SupabaseClient | null = url && key ? createClient(url, key, {
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
