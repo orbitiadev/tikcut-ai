@@ -56,6 +56,8 @@ test('common H.264/AAC MP4 can be cut from a 65-minute source in Chrome', async 
 
   await setSeconds(page, 'IN segundos', 300);
   await setSeconds(page, 'OUT segundos', 304);
+  await expect(page.getByText('IN 5:00', { exact: true })).toBeVisible();
+  await expect(page.getByText('OUT 5:04', { exact: true })).toBeVisible();
   const downloadPromise = page.waitForEvent('download', { timeout: 4 * 60 * 1000 });
   await page.getByRole('button', { name: 'Cortar vídeo', exact: true }).click();
   const download = await downloadPromise;
@@ -72,6 +74,6 @@ test('guide explains only functions that exist in the current app', async ({ pag
   await page.goto('/');
   await page.getByRole('button', { name: 'Guia de Uso' }).click();
   await expect(page.getByRole('heading', { name: /Como usar o TikCut AI/ })).toBeVisible();
-  await expect(page.getByText('Cortar o vídeo', { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Cortar o vídeo/ })).toBeVisible();
   await expect(page.getByText(/Funções do guia antigo que ainda não existem/)).toBeVisible();
 });
