@@ -4,6 +4,7 @@ import { existsSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const shortVideo = resolve(process.cwd(), 'tests/fixtures/short-6s.mp4');
+const shortWebm = resolve(process.cwd(), 'tests/fixtures/short-6s.webm');
 const music = resolve(process.cwd(), 'tests/fixtures/music-2s.wav');
 
 function probeDuration(path: string) {
@@ -80,11 +81,11 @@ test('Finalizer burns captions into a real 1080x1920 MP4 and mixes music', async
 
 test('Finalizer can import SRT, edit timing/text, preview styles and export SRT', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name === 'chromium-mobile', 'Desktop form behavior is covered once per desktop engine.');
-  expect(existsSync(shortVideo)).toBeTruthy();
+  expect(existsSync(shortWebm)).toBeTruthy();
 
   await page.goto('/');
   await page.getByRole('button', { name: 'FINALIZADOR' }).click();
-  await page.getByLabel('Importar vídeo no Finalizador').setInputFiles(shortVideo);
+  await page.getByLabel('Importar vídeo no Finalizador').setInputFiles(shortWebm);
   await expect(page.getByRole('status')).toContainText('Vídeo pronto', { timeout: 30_000 });
 
   await page.getByLabel('Importar arquivo SRT').setInputFiles({
