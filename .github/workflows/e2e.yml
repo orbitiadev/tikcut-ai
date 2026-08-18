@@ -17,13 +17,11 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Install Chromium for Playwright
         run: npx playwright install --with-deps chromium
-      - name: Ensure ffmpeg is available
+      - name: Verify ffmpeg tools
         run: |
-          if ! command -v ffmpeg >/dev/null 2>&1; then
-            sudo apt-get update
-            sudo apt-get install -y ffmpeg
-          fi
-          ffmpeg -version | head -n 1
+          command -v ffmpeg
+          command -v ffprobe
+          ffmpeg -version | sed -n '1p'
       - name: Generate 65-minute browser fixture
         run: |
           mkdir -p tests/fixtures
