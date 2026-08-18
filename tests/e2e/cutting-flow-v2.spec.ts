@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
 import { existsSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -6,10 +6,14 @@ import { resolve } from 'node:path';
 const longWebm = resolve(process.cwd(), 'tests/fixtures/long-65min.webm');
 const ffprobeBin = process.env.FFPROBE_BIN || 'ffprobe';
 
-async function setSeconds(page: import('@playwright/test').Page, label: string, value: number) {
+async function setSeconds(page: Page, label: string, value: number) {
   const input = page.getByLabel(label);
-  await input.fill(String(value));
-  await input.dispatchEvent('change');
+  await input.evaluate((element: HTMLInputElement, next: number) => {
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+    setter?.call(element, String(next));
+    element.dispatchEvent(new Event('input', { bubbles: true }));
+    element.dispatchEvent(new Event('change', { bubbles: true }));
+  }, value);
 }
 
 test('Cortar vídeo creates a real downloadable MP4 from a 65-minute source', async ({ page }, testInfo) => {
@@ -47,5 +51,5 @@ test('Guide documents the real editor workflow', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Guia de Uso', exact: true }).click();
   await expect(page.getByRole('heading', { name: /Como usar o TikCut AI/ })).toBeVisible();
-  await expect(page.getByText('Cortar o vídeo', { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '4. Cortar o vídeo', exact: true })).toBeVisible();
 });
