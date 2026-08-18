@@ -3,6 +3,8 @@ import { supabase } from './supabase';
 
 const KEY = 'tikcut-ai-project';
 
+export type SyncResult = 'offline' | 'signed-out' | 'synced';
+
 export function loadLocalProject(): LocalProject | null {
   try {
     const raw = localStorage.getItem(KEY);
@@ -16,11 +18,14 @@ export function saveLocalProject(project: LocalProject): void {
   localStorage.setItem(KEY, JSON.stringify(project));
 }
 
-export async function syncProject(project: LocalProject): Promise<'offline' | 'synced'> {
+export async function syncProject(project: LocalProject): Promise<SyncResult> {
   if (!supabase) return 'offline';
-  const { data: userData } = await supabase.auth.getUser();
-  if (!userData.user) return 'offline';
-  const { error } = await supabase.from('projects').upsert({
+
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  if (userError && userError.name !== 'AuthSessionMissingError') throw userError;
+  if (!userData.user) return 'signed-out';
+
+  const { error } = await supabase.from('tikcut_projects').upsert({
     id: project.id,
     user_id: userData.user.id,
     name: project.name,
@@ -29,7 +34,7 @@ export async function syncProject(project: LocalProject): Promise<'offline' | 's
     trim_end: project.trimEnd,
     caption_style: project.captionStyle,
     updated_at: new Date().toISOString()
-  });
+  }, { onConflict: 'id' });
   if (error) throw error;
   return 'synced';
 }
