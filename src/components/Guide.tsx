@@ -6,7 +6,7 @@ export default function Guide() {
           <div className="eyebrow">TIKCUT AI · GUIA DE USO REAL</div>
           <h1>Como usar o <span>TikCut AI</span></h1>
         </div>
-        <span className="pill good">v0.3</span>
+        <span className="pill good">v0.4</span>
       </header>
 
       <main className="guide-content card">
@@ -55,21 +55,33 @@ export default function Guide() {
           <p>Escolha Podcast, Storytime, Gaming, Motivacional, Cinematic, Meme ou Satisfying. Ative ou desative transcrição, remoção de silêncios, 9:16, Auto Zoom e B-roll. “EXECUTAR AUTOPILOT” prepara o plano editável, gera o pacote social, procura B-roll licenciado quando ativado e renderiza o MP4. As decisões continuam visíveis na timeline para revisão.</p>
         </section>
         <section>
-          <h2>12. Criar com IA · Fruit AI</h2>
+          <h2>12. FINALIZADOR · legendas realmente gravadas no MP4</h2>
+          <p>Abra “FINALIZADOR” depois de criar o short. Importe o vídeo de até 10 minutos, gere legendas com Whisper local, importe um SRT ou crie blocos manualmente. Edite texto, IN e OUT de cada bloco e escolha Impact, Clean ou Storytime. A prévia acompanha o tempo do vídeo.</p>
+        </section>
+        <section>
+          <h2>13. Música e mixagem</h2>
+          <p>No Finalizador, adicione um arquivo de áudio opcional e ajuste separadamente o volume da música e do áudio original. O render final mistura os áudios localmente. Se o vídeo não tiver trilha original, o TikCut usa a música sem bloquear a exportação.</p>
+        </section>
+        <section>
+          <h2>14. Exportação final para TikTok</h2>
+          <p>Clique em “Renderizar vídeo final”. A saída é MP4 H.264/AAC em 1080 × 1920 e 30 fps. As legendas deixam de ser somente uma prévia: elas são compostas quadro a quadro e ficam visíveis dentro do arquivo final. Confira a prévia e use “Baixar MP4 final”.</p>
+        </section>
+        <section>
+          <h2>15. Criar com IA · Fruit AI</h2>
           <p>Digite o conceito e use “Gerar storyboard IA”. O modo local cria cenas e, como fallback sem serviço pago de geração visual, monta um vídeo vertical animado usando mídia licenciada encontrada no Wikimedia Commons. Isso é diferente de gerar uma imagem/vídeo sintético fotorrealista do zero.</p>
         </section>
         <section>
-          <h2>13. STORYVERSE</h2>
+          <h2>16. STORYVERSE</h2>
           <p>Abra STORYVERSE para criar séries, personagens e episódios em continuidade. Os dados ficam salvos localmente e podem ser exportados em TXT/JSON.</p>
         </section>
         <section>
-          <h2>14. Login e sincronização</h2>
-          <p>Magic Link e Supabase continuam opcionais para dados do projeto. As operações pesadas do editor e do Studio Pro foram desenhadas como local-first.</p>
+          <h2>17. Login e sincronização</h2>
+          <p>Magic Link e Supabase continuam opcionais para dados do projeto. As operações pesadas do Editor, Studio Pro e Finalizador foram desenhadas como local-first.</p>
         </section>
 
         <section className="guide-warning">
           <h2>Limites atuais que o TikCut mostra sem fingir</h2>
-          <p>Geração visual sintética fotorrealista de imagem/vídeo ainda precisa de um provedor de geração dedicado. A disponibilidade da IA nativa do Chrome varia por navegador e aparelho. O TikCut sempre indica fallback e não promete viralização. Revise cortes, mídia, licenças, legendas, áudio e resultado final antes de publicar.</p>
+          <p>Geração visual sintética fotorrealista de imagem/vídeo ainda precisa de um provedor de geração dedicado. A disponibilidade da IA nativa do Chrome varia por navegador e aparelho. O Finalizador limita cada render a 10 minutos para proteger RAM/CPU do navegador. O TikCut não promete viralização. Revise cortes, mídia, licenças, legendas, áudio e resultado final antes de publicar.</p>
         </section>
       </main>
     </div>
