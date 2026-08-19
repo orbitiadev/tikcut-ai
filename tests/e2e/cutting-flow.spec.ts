@@ -71,6 +71,34 @@ test('common H.264/AAC MP4 can be cut from a 65-minute source in Chrome', async 
   await expect(page.getByRole('link', { name: 'Baixar corte pronto' })).toBeVisible();
 });
 
+test('2:30 and 2:45 presets create the requested long short-form range and a real 2:45 MP4', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'chrome-desktop', 'Long H.264 preset export is validated once in branded Chrome.');
+  expect(existsSync(longMp4)).toBeTruthy();
+
+  await page.goto('/');
+  await page.locator('input[type="file"]').setInputFiles(longMp4);
+  await expect(page.getByText('1h+ OK', { exact: true })).toBeVisible({ timeout: 30_000 });
+  await setSeconds(page, 'IN segundos', 300);
+
+  await page.getByRole('button', { name: '2:30', exact: true }).click();
+  await expect(page.getByText('OUT 7:30', { exact: true })).toBeVisible();
+  await expect(page.getByText('2:30', { exact: true }).first()).toBeVisible();
+
+  await page.getByRole('button', { name: '2:45', exact: true }).click();
+  await expect(page.getByText('OUT 7:45', { exact: true })).toBeVisible();
+
+  const downloadPromise = page.waitForEvent('download', { timeout: 5 * 60 * 1000 });
+  await page.getByRole('button', { name: 'Cortar vídeo', exact: true }).click();
+  const download = await downloadPromise;
+  const path = await download.path();
+  expect(path).toBeTruthy();
+  expect(statSync(path!).size).toBeGreaterThan(100_000);
+  const duration = probeDuration(path!);
+  expect(duration).toBeGreaterThan(163.5);
+  expect(duration).toBeLessThan(166.8);
+  await expect(page.getByRole('status')).toContainText('Corte pronto');
+});
+
 test('guide explains only functions that exist in the current app', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Guia de Uso' }).click();
