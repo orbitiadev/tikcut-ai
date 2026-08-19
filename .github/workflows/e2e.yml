@@ -30,17 +30,25 @@ jobs:
           else
             npx playwright install chrome
           fi
-      - name: Install ffmpeg tools
+      - name: Ensure ffmpeg tools are available
         env:
           DEBIAN_FRONTEND: noninteractive
         run: |
-          for attempt in 1 2 3; do
-            if sudo apt-get -o Acquire::Retries=3 install -y --no-install-recommends ffmpeg; then
-              break
-            fi
-            if [ "$attempt" = "3" ]; then exit 1; fi
-            sleep $((attempt * 5))
-          done
+          if command -v ffmpeg >/dev/null 2>&1 && command -v ffprobe >/dev/null 2>&1; then
+            echo "Using ffmpeg already available on runner"
+          else
+            for attempt in 1 2 3; do
+              echo "Installing ffmpeg, attempt ${attempt}/3"
+              if timeout 150s sudo apt-get -o Acquire::Retries=2 -o Dpkg::Lock::Timeout=45 install -y --no-install-recommends ffmpeg; then
+                break
+              fi
+              if [ "$attempt" = "3" ]; then
+                echo "ffmpeg installation failed after bounded retries"
+                exit 1
+              fi
+              sleep $((attempt * 5))
+            done
+          fi
           command -v ffmpeg
           command -v ffprobe
           ffmpeg -version | sed -n '1p'
