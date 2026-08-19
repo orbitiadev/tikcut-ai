@@ -17,8 +17,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - name: Install app dependencies
-        run: npm install --no-audit --no-fund
+      - name: Install browser QA dependencies without native postinstall downloads
+        run: |
+          npm install --ignore-scripts --no-audit --no-fund
+          node scripts/copy-ffmpeg-core.mjs
       - name: Install Chromium for Playwright
         run: npx playwright install chromium
       - name: Ensure branded Chrome is available for H.264 QA
