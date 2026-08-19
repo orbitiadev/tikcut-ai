@@ -44,16 +44,17 @@ test('editor handles a 65-minute source, selected-range silence scan and short 9
   await page.locator('.suggestion').first().getByRole('button', { name: 'Aplicar IN/OUT sugerido' }).click();
   await expect(page.getByRole('status')).toContainText('Sugestão aplicada');
 
-  // Silence detection is intentionally range-scoped now; never scan the whole 65-minute source in the browser.
+  // Silence detection is range-scoped. A short 60s window keeps regression QA fast;
+  // the dedicated 2:45 test validates the longer cut/export path separately.
   await page.getByLabel('IN segundos').fill('0');
   await page.getByLabel('IN segundos').dispatchEvent('change');
-  await page.getByRole('button', { name: '2:45', exact: true }).click();
-  await expect(page.getByText('OUT 2:45', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '60s', exact: true }).click();
+  await expect(page.getByText('OUT 1:00', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Detectar pausas/silêncios' }).click();
-  await expect(page.getByRole('status')).toContainText(/pausas detectadas dentro do corte selecionado/, { timeout: 4 * 60 * 1000 });
+  await expect(page.getByRole('status')).toContainText(/pausas detectadas dentro do corte selecionado/, { timeout: 2 * 60 * 1000 });
   const silenceStatus = await page.getByRole('status').innerText();
   const silenceCount = Number(silenceStatus.match(/(\d+) pausas/)?.[1] ?? 0);
-  expect(silenceCount).toBeGreaterThan(10);
+  expect(silenceCount).toBeGreaterThan(3);
 
   await setRange(page, 'Início', 120);
   await setRange(page, 'Fim', 122);
