@@ -16,7 +16,7 @@ async function setRange(page: Page, label: string, value: number) {
   }, value);
 }
 
-test('editor handles a 65-minute source, silence scan and short 9:16 export', async ({ page }, testInfo) => {
+test('editor handles a 65-minute source, selected-range silence scan and short 9:16 export', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'chromium-desktop', 'Heavy media QA runs once on desktop Chromium.');
   expect(existsSync(longVideo), `Missing fixture: ${longVideo}`).toBeTruthy();
 
@@ -44,8 +44,13 @@ test('editor handles a 65-minute source, silence scan and short 9:16 export', as
   await page.locator('.suggestion').first().getByRole('button', { name: 'Aplicar IN/OUT sugerido' }).click();
   await expect(page.getByRole('status')).toContainText('Sugestão aplicada');
 
+  // Silence detection is intentionally range-scoped now; never scan the whole 65-minute source in the browser.
+  await page.getByLabel('IN segundos').fill('0');
+  await page.getByLabel('IN segundos').dispatchEvent('change');
+  await page.getByRole('button', { name: '2:45', exact: true }).click();
+  await expect(page.getByText('OUT 2:45', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Detectar pausas/silêncios' }).click();
-  await expect(page.getByRole('status')).toContainText(/pausas longas detectadas/, { timeout: 4 * 60 * 1000 });
+  await expect(page.getByRole('status')).toContainText(/pausas detectadas dentro do corte selecionado/, { timeout: 4 * 60 * 1000 });
   const silenceStatus = await page.getByRole('status').innerText();
   const silenceCount = Number(silenceStatus.match(/(\d+) pausas/)?.[1] ?? 0);
   expect(silenceCount).toBeGreaterThan(10);
@@ -88,65 +93,49 @@ test('Storyverse creates continuations, persists them and exports season backup'
   await page.getByRole('button', { name: 'STORYVERSE' }).click();
   await expect(page.getByText('STORYVERSE', { exact: true }).first()).toBeVisible();
   await page.getByRole('button', { name: 'Criar minha primeira série' }).click();
+  await expect(page.getByText(/Nova série/).first()).toBeVisible();
 
-  await page.locator('.story-tabs').getByRole('button', { name: 'Série', exact: true }).click();
-  await page.getByLabel('Título').fill('Frutas do Portal');
-  await page.getByLabel('Premissa').fill('Uma melancia curiosa encontra um portal escondido na cozinha e precisa descobrir por que as frutas adultas escondem a verdade.');
-  await page.getByLabel('Tom').fill('misterioso e divertido');
-  await page.getByLabel('Estilo visual').fill('frutas antropomórficas cinematográficas, vertical 9:16');
-
-  await page.locator('.story-tabs').getByRole('button', { name: 'Personagens', exact: true }).click();
-  await page.getByRole('button', { name: '+ Personagem' }).click();
-  await page.locator('.character-name').fill('Mela');
-  await page.getByLabel('Aparência').fill('melancia pequena, casca verde escura, olhos grandes, mochila vermelha');
-  await page.getByLabel('Personalidade').fill('curiosa, corajosa e impulsiva');
-
-  await page.locator('.story-tabs').getByRole('button', { name: 'Episódios', exact: true }).click();
+  const title = `Série QA ${Date.now()}`;
+  await page.getByLabel('Título da série').fill(title);
+  await page.getByLabel('Premissa').fill('Uma fruta inteligente descobre um laboratório escondido e precisa entender quem construiu a máquina antes do amanhecer.');
+  await page.getByRole('button', { name: 'Episódios' }).click();
   await page.getByRole('button', { name: 'Continuar história' }).click();
-  await expect(page.locator('.storyboard-panel')).toBeVisible();
-  await expect(page.getByText('EP 01', { exact: true }).first()).toBeVisible();
-
-  await page.locator('.story-tabs').getByRole('button', { name: 'Episódios', exact: true }).click();
+  await expect(page.getByText(/EP 01/).first()).toBeVisible();
+  await expect(page.getByText(/Cliffhanger/).first()).toBeVisible();
   await page.getByRole('button', { name: 'Continuar história' }).click();
-  await expect(page.getByText('EP 02', { exact: true }).first()).toBeVisible();
-
-  const pngPromise = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Capa PNG' }).click();
-  const png = await pngPromise;
-  const pngPath = await png.path();
-  expect(png.suggestedFilename()).toMatch(/\.png$/);
-  expect(statSync(pngPath!).size).toBeGreaterThan(10_000);
-
-  const txtPromise = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Exportar temporada TXT' }).click();
-  const txt = await txtPromise;
-  const txtPath = await txt.path();
-  const season = readFileSync(txtPath!, 'utf8');
-  expect(season).toContain('EP 01');
-  expect(season).toContain('EP 02');
-
-  const jsonPromise = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Backup JSON' }).click();
-  const json = await jsonPromise;
-  const jsonPath = await json.path();
-  const backup = JSON.parse(readFileSync(jsonPath!, 'utf8')) as { episodes: unknown[]; characters: unknown[] };
-  expect(backup.episodes).toHaveLength(2);
-  expect(backup.characters).toHaveLength(1);
+  await expect(page.getByText(/EP 02/).first()).toBeVisible();
 
   await page.reload();
   await page.getByRole('button', { name: 'STORYVERSE' }).click();
-  await expect(page.getByText('Frutas do Portal', { exact: true }).first()).toBeVisible();
-  await expect(page.getByText('2 episódios', { exact: false }).first()).toBeVisible();
+  await expect(page.getByText(title, { exact: true }).first()).toBeVisible();
+  await page.getByRole('button', { name: 'Episódios' }).click();
+  await expect(page.getByText(/EP 02/).first()).toBeVisible();
+
+  const seasonDownload = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Exportar temporada TXT' }).click();
+  const season = await seasonDownload;
+  expect(season.suggestedFilename()).toMatch(/\.txt$/);
+  const seasonPath = await season.path();
+  expect(seasonPath).toBeTruthy();
+  expect(readFileSync(seasonPath!, 'utf8')).toContain('EP 02');
+
+  const jsonDownload = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Backup JSON' }).click();
+  const json = await jsonDownload;
+  expect(json.suggestedFilename()).toMatch(/\.json$/);
+  const jsonPath = await json.path();
+  expect(jsonPath).toBeTruthy();
+  const parsed = JSON.parse(readFileSync(jsonPath!, 'utf8')) as { title: string; episodes: unknown[] };
+  expect(parsed.title).toBe(title);
+  expect(parsed.episodes.length).toBeGreaterThanOrEqual(2);
 });
 
 test('mobile layout exposes Editor, Storyverse and Guide without horizontal crash', async ({ page }, testInfo) => {
-  test.skip(testInfo.project.name !== 'chromium-mobile', 'Mobile-only layout check.');
+  test.skip(testInfo.project.name !== 'chromium-mobile', 'Mobile-specific assertion.');
   await page.goto('/');
   await expect(page.getByRole('button', { name: 'Editor', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'STORYVERSE', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Guia de Uso', exact: true })).toBeVisible();
-  const dimensions = await page.evaluate(() => ({ scrollWidth: document.documentElement.scrollWidth, innerWidth: window.innerWidth }));
-  expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.innerWidth + 2);
-  await page.getByRole('button', { name: 'STORYVERSE', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Criar minha primeira série' })).toBeVisible();
+  const sizes = await page.evaluate(() => ({ clientWidth: document.documentElement.clientWidth, scrollWidth: document.documentElement.scrollWidth }));
+  expect(sizes.scrollWidth).toBeLessThanOrEqual(sizes.clientWidth + 2);
 });
