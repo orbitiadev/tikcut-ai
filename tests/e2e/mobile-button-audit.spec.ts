@@ -55,11 +55,30 @@ test('mobile navigation stays usable at compact Android widths', async ({ page }
       await expect(nav).toBeVisible();
       await nav.click();
       await expect(nav).toHaveClass(/active/);
-      const sizes = await page.evaluate(() => ({
-        clientWidth: document.documentElement.clientWidth,
-        scrollWidth: document.documentElement.scrollWidth,
-      }));
-      expect(sizes.scrollWidth, `${area} overflow at ${viewport.width}px`).toBeLessThanOrEqual(sizes.clientWidth + 2);
+      const layout = await page.evaluate(() => {
+        const clientWidth = document.documentElement.clientWidth;
+        const scrollWidth = document.documentElement.scrollWidth;
+        const offenders = Array.from(document.querySelectorAll<HTMLElement>('body *')).flatMap((element) => {
+          const rect = element.getBoundingClientRect();
+          if (rect.right <= clientWidth + 2 && rect.left >= -2) return [];
+          const style = getComputedStyle(element);
+          return [{
+            tag: element.tagName.toLowerCase(),
+            className: typeof element.className === 'string' ? element.className : '',
+            text: (element.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 80),
+            left: Math.round(rect.left),
+            right: Math.round(rect.right),
+            width: Math.round(rect.width),
+            position: style.position,
+            overflowX: style.overflowX,
+          }];
+        }).slice(0, 12);
+        return { clientWidth, scrollWidth, offenders };
+      });
+      expect(
+        layout.scrollWidth,
+        `${area} overflow at ${viewport.width}px\nOffenders: ${JSON.stringify(layout.offenders, null, 2)}`,
+      ).toBeLessThanOrEqual(layout.clientWidth + 2);
     }
   }
 });
@@ -83,8 +102,6 @@ test('every initially enabled mobile button can be pressed without crash and dea
     const descriptors = await visibleEnabledButtons(page);
 
     for (const descriptor of descriptors) {
-      // Clicking the already-active area is intentionally a no-op; native form validation on Entrar
-      // is also handled by the browser when the required e-mail field is empty.
       if (descriptor.text === area || descriptor.text === 'Entrar') continue;
 
       await openArea(page, area);
@@ -123,8 +140,5 @@ test('every initially enabled mobile button can be pressed without crash and dea
   console.log(`MOBILE_BUTTON_AUDIT noops=${JSON.stringify(noOps)}`);
 
   expect(runtimeErrors, runtimeErrors.join('\n')).toEqual([]);
-
-  // A visible enabled button that produces no UI state, navigation, dialog/download or feedback is
-  // suspicious on mobile. Already-selected buttons are intentionally skipped above.
   expect(noOps, `Enabled buttons with no observable response:\n${noOps.join('\n')}`).toEqual([]);
 });
