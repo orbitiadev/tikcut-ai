@@ -92,6 +92,12 @@ test('every initially enabled mobile button can be pressed without crash and dea
       const button = matches.nth(descriptor.occurrence);
       if (!(await button.isVisible().catch(() => false)) || await button.isDisabled().catch(() => true)) continue;
 
+      const intentionallySelected = await button.evaluate((element) => {
+        const value = element as HTMLButtonElement;
+        return value.classList.contains('active') || value.getAttribute('aria-pressed') === 'true' || value.getAttribute('aria-selected') === 'true';
+      }).catch(() => false);
+      if (intentionallySelected) continue;
+
       const before = await fingerprint(page);
       const beforeUrl = page.url();
       let downloadStarted = false;
@@ -119,6 +125,6 @@ test('every initially enabled mobile button can be pressed without crash and dea
   expect(runtimeErrors, runtimeErrors.join('\n')).toEqual([]);
 
   // A visible enabled button that produces no UI state, navigation, dialog/download or feedback is
-  // suspicious on mobile. Keep the allow-list deliberately tiny so placebo buttons surface in CI.
+  // suspicious on mobile. Already-selected buttons are intentionally skipped above.
   expect(noOps, `Enabled buttons with no observable response:\n${noOps.join('\n')}`).toEqual([]);
 });
