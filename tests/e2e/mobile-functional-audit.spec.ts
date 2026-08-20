@@ -34,13 +34,24 @@ test('mobile Editor buttons work after importing a real video', async ({ page },
   await page.getByLabel('IN segundos').dispatchEvent('change');
   await page.getByLabel('OUT segundos').fill('3');
   await page.getByLabel('OUT segundos').dispatchEvent('change');
-  const downloadPromise = page.waitForEvent('download', { timeout: 4 * 60 * 1000 });
+
+  const cutDownloadPromise = page.waitForEvent('download', { timeout: 4 * 60 * 1000 });
   await page.getByRole('button', { name: 'Cortar vídeo', exact: true }).click();
-  const download = await downloadPromise;
-  const path = await download.path();
-  expect(path).toBeTruthy();
-  expect(statSync(path!).size).toBeGreaterThan(5_000);
+  const cutDownload = await cutDownloadPromise;
+  const cutPath = await cutDownload.path();
+  expect(cutPath).toBeTruthy();
+  expect(statSync(cutPath!).size).toBeGreaterThan(5_000);
   await expect(page.getByRole('link', { name: 'Baixar corte pronto' })).toBeVisible();
+
+  const verticalDownloadPromise = page.waitForEvent('download', { timeout: 5 * 60 * 1000 });
+  await page.getByRole('button', { name: 'Exportar MP4 9:16', exact: true }).click();
+  const verticalDownload = await verticalDownloadPromise;
+  const verticalPath = await verticalDownload.path();
+  expect(verticalPath).toBeTruthy();
+  expect(statSync(verticalPath!).size).toBeGreaterThan(10_000);
+  expect(probeVideoSize(verticalPath!)).toBe('1080x1920');
+  await expect(page.getByRole('status')).toContainText('Vídeo vertical pronto');
+  await expect(page.getByRole('link', { name: 'Baixar vídeo 9:16' })).toBeVisible();
 });
 
 test('mobile Studio Pro exposes only safe actions and its real engine responds', async ({ page }, testInfo) => {
