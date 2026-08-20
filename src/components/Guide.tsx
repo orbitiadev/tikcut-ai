@@ -20,23 +20,23 @@ export default function Guide() {
         </section>
         <section>
           <h2>3. Vídeos longos</h2>
-          <p>A fonte pode ter mais de uma hora, mas cada render local deve ter no máximo 10 minutos. Trabalhe em trechos menores para manter o navegador estável.</p>
+          <p>A fonte pode ter mais de uma hora. No celular, trabalhe em trechos de até 2:45 no Studio Pro para reduzir uso de memória. No Editor e no Finalizador continuam existindo limites próprios mostrados na tela.</p>
         </section>
         <section>
           <h2>4. STUDIO PRO</h2>
-          <p>Abra “STUDIO PRO” para as ferramentas avançadas. Importe o vídeo, defina IN/OUT do trecho e use os módulos de transcrição, remoção de silêncio, Auto Zoom, B-roll, Autopilot, Fruit AI e timeline multicamada.</p>
+          <p>Abra “STUDIO PRO” para as ferramentas avançadas. No celular o modo compatível fica ativo para priorizar estabilidade: corte, detecção de silêncio, planejamento, storyboard, timeline e Autopilot móvel continuam disponíveis. Renders pesados exclusivos de desktop ficam ocultos em telas pequenas.</p>
         </section>
         <section>
           <h2>5. Transcrição automática local</h2>
-          <p>No Studio Pro, clique em “Transcrever com Whisper local”. O TikCut extrai o áudio do intervalo selecionado e executa Whisper no navegador. Na primeira utilização o modelo precisa ser baixado. WebGPU é tentado primeiro e há fallback local quando necessário. Depois você pode editar o texto e baixar SRT.</p>
+          <p>No Studio Pro, clique em “Transcrever com Whisper local”. O TikCut extrai o áudio do intervalo selecionado e executa Whisper no navegador. Na primeira utilização o modelo precisa ser baixado. WebGPU é tentado primeiro e há fallback local quando necessário. No celular, use trechos curtos porque o modelo consome memória.</p>
         </section>
         <section>
           <h2>6. Remover todos os silêncios</h2>
-          <p>Use “Detectar todos os silêncios” e depois “Remover TODOS os silêncios”. O TikCut cria os segmentos falados, concatena o material e gera um novo MP4. O vídeo original não é alterado.</p>
+          <p>Use “Detectar todos os silêncios” e depois “Remover TODOS os silêncios”. O TikCut analisa somente IN/OUT, cria os segmentos falados e gera um novo MP4. O vídeo original não é alterado.</p>
         </section>
         <section>
           <h2>7. Auto Zoom inteligente</h2>
-          <p>Escolha um estilo, clique em “Planejar Auto Zoom” e revise os eventos na faixa ZOOM/FX. Depois use “Renderizar Auto Zoom 9:16”. O plano considera ritmo, falas com ênfase e pausas detectadas.</p>
+          <p>“Planejar Auto Zoom” funciona também no celular e mostra os eventos na faixa ZOOM/FX. O render pesado “Renderizar Auto Zoom 9:16” fica oculto no modo móvel; no telefone use o Autopilot compatível, que gera uma saída vertical mais leve.</p>
         </section>
         <section>
           <h2>8. Títulos, descrição, hooks e hashtags</h2>
@@ -44,7 +44,7 @@ export default function Guide() {
         </section>
         <section>
           <h2>9. Auto B-roll</h2>
-          <p>Use “Sugerir pontos de B-roll” para gerar termos e momentos. Em seguida pesquise no Wikimedia Commons ou use “Auto preencher timeline”. Cada resultado mostra fonte, autoria/licença quando disponível e pode ser colocado na faixa B-ROLL. No Autopilot vertical, a opção “Incorporar B-roll no MP4” também pode colocar automaticamente as mídias escolhidas dentro do vídeo final. Se uma fonte externa falhar, o render principal continua.</p>
+          <p>Use “Sugerir pontos de B-roll” para gerar termos e momentos. Em seguida pesquise no Wikimedia Commons ou use “Auto preencher timeline”. Cada resultado mostra fonte, autoria/licença quando disponível. A incorporação pesada automática no MP4 fica desativada no modo móvel para reduzir risco de travamento.</p>
         </section>
         <section>
           <h2>10. Timeline profissional multicamada</h2>
@@ -52,11 +52,11 @@ export default function Guide() {
         </section>
         <section>
           <h2>11. Autopilot</h2>
-          <p>Escolha Podcast, Storytime, Gaming, Motivacional, Cinematic, Meme ou Satisfying. Ative ou desative transcrição, remoção de silêncios, 9:16, Auto Zoom e B-roll. “EXECUTAR AUTOPILOT” prepara o plano editável, gera o pacote social, procura B-roll licenciado quando ativado e renderiza o MP4. As decisões continuam visíveis na timeline para revisão.</p>
+          <p>Escolha Podcast, Storytime, Gaming, Motivacional, Cinematic, Meme ou Satisfying. No celular, “EXECUTAR AUTOPILOT” usa o modo compatível e gera uma saída 720 × 1280 mais leve; Auto Zoom renderizado e B-roll incorporado ficam desativados. No desktop o pipeline completo pode usar esses módulos adicionais.</p>
         </section>
         <section>
           <h2>12. FINALIZADOR · legendas realmente gravadas no MP4</h2>
-          <p>Abra “FINALIZADOR” depois de criar o short. Importe o vídeo de até 10 minutos, gere legendas com Whisper local, importe um SRT ou crie blocos manualmente. Edite texto, IN e OUT de cada bloco e escolha Impact, Clean ou Storytime. A prévia acompanha o tempo do vídeo.</p>
+          <p>Abra “FINALIZADOR” depois de criar o short. Importe o vídeo, gere legendas com Whisper local, importe um SRT ou crie blocos manualmente. Edite texto, IN e OUT de cada bloco e escolha Impact, Clean ou Storytime. A prévia acompanha o tempo do vídeo.</p>
         </section>
         <section>
           <h2>13. Música e mixagem</h2>
@@ -64,11 +64,11 @@ export default function Guide() {
         </section>
         <section>
           <h2>14. Exportação final para TikTok</h2>
-          <p>Clique em “Renderizar vídeo final”. A saída é MP4 H.264/AAC em 1080 × 1920 e 30 fps. As legendas deixam de ser somente uma prévia: elas são compostas quadro a quadro e ficam visíveis dentro do arquivo final. Confira a prévia e use “Baixar MP4 final”.</p>
+          <p>Clique em “Renderizar vídeo final”. A saída é MP4 H.264/AAC em 1080 × 1920 e 30 fps. As legendas são compostas dentro do arquivo final. Em celular, prefira vídeos curtos e feche outras abas antes de renderizar porque essa etapa usa bastante memória.</p>
         </section>
         <section>
           <h2>15. Criar com IA · Fruit AI</h2>
-          <p>Digite o conceito e use “Gerar storyboard IA”. O modo local cria cenas e, como fallback sem serviço pago de geração visual, monta um vídeo vertical animado usando mídia licenciada encontrada no Wikimedia Commons. Isso é diferente de gerar uma imagem/vídeo sintético fotorrealista do zero.</p>
+          <p>“Gerar storyboard IA” funciona no celular e cria as cenas e prompts. O render local de montagem com várias imagens fica oculto no modo móvel por ser pesado; no desktop ele pode montar mídia licenciada do Wikimedia Commons. Isso continua diferente de gerar imagem/vídeo sintético fotorrealista do zero.</p>
         </section>
         <section>
           <h2>16. STORYVERSE</h2>
@@ -81,7 +81,7 @@ export default function Guide() {
 
         <section className="guide-warning">
           <h2>Limites atuais que o TikCut mostra sem fingir</h2>
-          <p>Geração visual sintética fotorrealista de imagem/vídeo ainda precisa de um provedor de geração dedicado. A disponibilidade da IA nativa do Chrome varia por navegador e aparelho. O Finalizador limita cada render a 10 minutos para proteger RAM/CPU do navegador. O TikCut não promete viralização. Revise cortes, mídia, licenças, legendas, áudio e resultado final antes de publicar.</p>
+          <p>No celular, funções que exigem render pesado de desktop são ocultadas ou reduzidas para um modo compatível. Geração visual sintética fotorrealista ainda precisa de um provedor dedicado. A disponibilidade da IA nativa do Chrome varia por navegador e aparelho. O TikCut não promete viralização. Revise cortes, mídia, licenças, legendas, áudio e resultado final antes de publicar.</p>
         </section>
       </main>
     </div>
