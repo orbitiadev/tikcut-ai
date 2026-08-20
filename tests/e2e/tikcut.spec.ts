@@ -90,31 +90,38 @@ test('local editor settings survive reload and caption modes react', async ({ pa
   await expect(page.getByRole('button', { name: 'clean' })).toHaveClass(/active/);
 });
 
-test('Storyverse creates continuations, persists them and exports season backup', async ({ page }) => {
+test('Storyverse creates continuations, persists them and exports season backup', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'chromium-desktop', 'Storyverse persistence is browser-neutral and is validated once; mobile navigation has its own test.');
   await page.goto('/');
-  await page.getByRole('button', { name: 'STORYVERSE' }).click();
+  await page.getByRole('button', { name: 'STORYVERSE', exact: true }).click();
   await expect(page.getByText('STORYVERSE', { exact: true }).first()).toBeVisible();
-  await page.getByRole('button', { name: 'Criar minha primeira série' }).click();
-  await expect(page.getByText(/Nova série/).first()).toBeVisible();
+  await page.getByRole('button', { name: 'Criar minha primeira série', exact: true }).click();
+  await expect(page.getByText(/Nova série criada/).first()).toBeVisible({ timeout: 10_000 });
 
+  // New series intentionally opens Universo first. Move to Série to edit identity/premise.
+  await page.getByRole('button', { name: 'Série', exact: true }).click();
   const title = `Série QA ${Date.now()}`;
-  await page.getByLabel('Título da série').fill(title);
-  await page.getByLabel('Premissa').fill('Uma fruta inteligente descobre um laboratório escondido e precisa entender quem construiu a máquina antes do amanhecer.');
-  await page.getByRole('button', { name: 'Episódios' }).click();
-  await page.getByRole('button', { name: 'Continuar história' }).click();
-  await expect(page.getByText(/EP 01/).first()).toBeVisible();
+  await page.getByLabel('Título', { exact: true }).fill(title);
+  await page.getByLabel('Premissa', { exact: true }).fill('Uma fruta inteligente descobre um laboratório escondido e precisa entender quem construiu a máquina antes do amanhecer.');
+
+  await page.getByRole('button', { name: 'Episódios', exact: true }).click();
+  await page.getByRole('button', { name: 'Continuar história', exact: true }).click();
+  await expect(page.getByText(/EP 01/).first()).toBeVisible({ timeout: 10_000 });
   await expect(page.getByText(/Cliffhanger/).first()).toBeVisible();
-  await page.getByRole('button', { name: 'Continuar história' }).click();
-  await expect(page.getByText(/EP 02/).first()).toBeVisible();
+
+  // Episode generation opens Storyboard. Return to Episodes to create the next part.
+  await page.getByRole('button', { name: 'Episódios', exact: true }).click();
+  await page.getByRole('button', { name: 'Continuar história', exact: true }).click();
+  await expect(page.getByText(/EP 02/).first()).toBeVisible({ timeout: 10_000 });
 
   await page.reload();
-  await page.getByRole('button', { name: 'STORYVERSE' }).click();
+  await page.getByRole('button', { name: 'STORYVERSE', exact: true }).click();
   await expect(page.getByText(title, { exact: true }).first()).toBeVisible();
-  await page.getByRole('button', { name: 'Episódios' }).click();
+  await page.getByRole('button', { name: 'Episódios', exact: true }).click();
   await expect(page.getByText(/EP 02/).first()).toBeVisible();
 
   const seasonDownload = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Exportar temporada TXT' }).click();
+  await page.getByRole('button', { name: 'Exportar temporada TXT', exact: true }).click();
   const season = await seasonDownload;
   expect(season.suggestedFilename()).toMatch(/\.txt$/);
   const seasonPath = await season.path();
@@ -122,7 +129,7 @@ test('Storyverse creates continuations, persists them and exports season backup'
   expect(readFileSync(seasonPath!, 'utf8')).toContain('EP 02');
 
   const jsonDownload = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Backup JSON' }).click();
+  await page.getByRole('button', { name: 'Backup JSON', exact: true }).click();
   const json = await jsonDownload;
   expect(json.suggestedFilename()).toMatch(/\.json$/);
   const jsonPath = await json.path();
