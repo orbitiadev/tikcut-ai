@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import EditorV2 from './components/EditorV2';
-import StudioPro from './components/StudioProV3';
+import EditorV3 from './components/EditorV3';
+import StudioPro from './components/StudioProV4';
 import Finalizer from './components/Finalizer';
 import Storyverse from './components/Storyverse';
 import Guide from './components/Guide';
@@ -25,7 +25,7 @@ export default function RootApp() {
         <button className={area === 'storyverse' ? 'active' : ''} onClick={() => setArea('storyverse')}>STORYVERSE</button>
         <button className={area === 'guide' ? 'active' : ''} onClick={() => setArea('guide')}>Guia de Uso</button>
       </div>
-      {area === 'editor' && <EditorV2 />}
+      {area === 'editor' && <EditorV3 />}
       {area === 'studio-pro' && <StudioPro />}
       {area === 'finalizer' && <Finalizer />}
       {area === 'guide' && <Guide />}

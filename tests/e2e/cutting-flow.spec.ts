@@ -71,6 +71,37 @@ test('common H.264/AAC MP4 can be cut from a 65-minute source in Chrome', async 
   await expect(page.getByRole('link', { name: 'Baixar corte pronto' })).toBeVisible();
 });
 
+test('2:30 and 2:45 presets set exact ranges and 2:45 creates a real 165s MP4 from a 65-minute H.264 source', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'chrome-desktop', 'Long H.264 preset and real 2:45 output are validated once in branded Chrome.');
+  expect(existsSync(longMp4)).toBeTruthy();
+
+  await page.goto('/');
+  await page.locator('input[type="file"]').setInputFiles(longMp4);
+  await expect(page.getByText('1h+ OK', { exact: true })).toBeVisible({ timeout: 30_000 });
+  await setSeconds(page, 'IN segundos', 300);
+
+  await page.getByRole('button', { name: '2:30', exact: true }).click();
+  await expect(page.getByText('OUT 7:30', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('OUT segundos')).toHaveValue('450');
+
+  await page.getByRole('button', { name: '2:45', exact: true }).click();
+  await expect(page.getByText('OUT 7:45', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('OUT segundos')).toHaveValue('465');
+  await expect(page.getByText('2:45', { exact: true }).first()).toBeVisible();
+
+  const downloadPromise = page.waitForEvent('download', { timeout: 4 * 60 * 1000 });
+  await page.getByRole('button', { name: 'Cortar vídeo', exact: true }).click();
+  const download = await downloadPromise;
+  const path = await download.path();
+  expect(path).toBeTruthy();
+  expect(statSync(path!).size).toBeGreaterThan(100_000);
+  const duration = probeDuration(path!);
+  expect(duration).toBeGreaterThan(164.0);
+  expect(duration).toBeLessThan(166.5);
+  await expect(page.getByRole('status')).toContainText('Corte pronto');
+  await expect(page.getByRole('link', { name: 'Baixar corte pronto' })).toBeVisible();
+});
+
 test('guide explains only functions that exist in the current app', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Guia de Uso' }).click();
