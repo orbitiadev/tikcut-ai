@@ -63,7 +63,7 @@ test('Storyverse navigation can switch back to editor repeatedly', async ({ page
   await page.getByRole('button', { name: 'STORYVERSE', exact: true }).click();
   await expect(page.getByText('STORYVERSE', { exact: true }).first()).toBeVisible();
   await page.getByRole('button', { name: 'Editor', exact: true }).click();
-  await expect(page.getByText('3 · AutoCut por texto', { exact: true })).toBeVisible();
+  await expect(page.getByText('3 · Fila de cortes', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'STORYVERSE', exact: true }).click();
   await expect(page.getByText('STORYVERSE', { exact: true }).first()).toBeVisible();
 });
