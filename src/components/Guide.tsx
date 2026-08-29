@@ -15,7 +15,7 @@ export default function Guide() {
           <p>Importe MP4, MOV ou WebM. Assim que a duração é lida, o Editor cria automaticamente uma fila com vários cortes distribuídos por diferentes pontos do vídeo. Você não precisa escolher os minutos manualmente. Pode alterar quantidade, duração mínima e máxima e clicar em “Gerar cortes automáticos” para refazer a fila.</p>
         </section>
         <section>
-          <h2>2. Cortar a fila</h2>
+          <h2>2. Cortar e baixar a fila</h2>
           <p>Na fila, marque ou desmarque os trechos e use “Cortar selecionados”. O TikCut processa um corte de cada vez. O corte simples tenta primeiro copiar os streams sem recodificar e usa conversão automática quando necessário. Cada arquivo concluído recebe seu próprio botão “Baixar”.</p>
         </section>
         <section>
