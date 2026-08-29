@@ -30,8 +30,10 @@ test('2h05 source automatically creates many cuts and can render one without man
 
   const first = queue.locator('.cut-card').first();
   const last = queue.locator('.cut-card').last();
-  await expect(first).toContainText(/0:/);
-  await expect(last).toContainText(/1:|2:/);
+  const firstTime = await first.locator('.cut-time strong').innerText();
+  const lastTime = await last.locator('.cut-time strong').innerText();
+  expect(firstTime).not.toBe(lastTime);
+  expect(lastTime).toMatch(/1:|2:/);
 
   await first.getByRole('button', { name: 'Cortar agora', exact: true }).click();
   await expect(first.getByRole('button', { name: /Baixar/ })).toBeVisible({ timeout: 4 * 60 * 1000 });
