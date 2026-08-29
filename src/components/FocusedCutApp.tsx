@@ -31,6 +31,8 @@ type GeneratedCut = {
   kind: FocusedFormat;
 };
 
+type RenderPhase = 'idle' | 'preparing' | 'rendering' | 'saving';
+
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
 function formatTime(value: number) {
@@ -88,6 +90,7 @@ export default function FocusedCutApp() {
   const [storage, setStorage] = useState({ used: 0, quota: 0 });
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [renderPhase, setRenderPhase] = useState<RenderPhase>('idle');
   const [status, setStatus] = useState('Importe um vídeo para começar.');
   const [projectId, setProjectId] = useState(() => initialProject.current?.id ?? crypto.randomUUID());
   const createdAtRef = useRef(initialProject.current?.createdAt ?? new Date().toISOString());
@@ -281,50 +284,101 @@ export default function FocusedCutApp() {
     if (!file) return setStatus('Importe o vídeo antes de gerar os cortes.');
     if (!items.length) return setStatus('Selecione pelo menos um corte.');
     if (busy) return;
+
     setBusy(true);
-    setProgress(0);
+    setRenderPhase('preparing');
+    setProgress(0.01);
     let completed = 0;
     let failed = 0;
     let notPersisted = 0;
 
-    for (let index = 0; index < items.length; index += 1) {
-      const item = items[index];
-      try {
-        setStatus(`Gerando ${index + 1}/${items.length}: ${item.title}…`);
-        const blob = settings.format === 'vertical'
-          ? await exportVerticalMp4(file, item.start, item.end, (ratio) => setProgress((index + ratio) / items.length))
-          : await exportCutMp4(file, item.start, item.end, (ratio) => setProgress((index + ratio) / items.length));
-        const filename = `${safePrefix(settings.prefix)}-corte-${String(index + 1).padStart(2, '0')}-${Math.round(item.start)}s.mp4`;
-        const url = URL.createObjectURL(blob);
-        const previous = generatedRef.current[item.id];
-        if (previous) URL.revokeObjectURL(previous.url);
-        const record = {
-          id: crypto.randomUUID(),
-          filename,
-          sourceName: file.name,
-          start: item.start,
-          end: item.end,
-          kind: settings.format,
-          size: blob.size,
-          createdAt: new Date().toISOString(),
-        };
-        const saved = await saveFocusedOutput(record, blob, settings.saveGenerated);
-        if (settings.saveGenerated && !saved.blobSaved) notPersisted += 1;
-        const generatedItem: GeneratedCut = { url, filename, size: blob.size, saved: saved.blobSaved, start: item.start, end: item.end, kind: settings.format };
-        setGenerated((current) => ({ ...current, [item.id]: generatedItem }));
-        completed += 1;
-      } catch (error) {
-        failed += 1;
-        console.error('TikCut render failed', item, error);
-      }
-      setProgress((index + 1) / items.length);
-    }
+    try {
+      for (let index = 0; index < items.length; index += 1) {
+        const item = items[index];
+        const itemBase = index / items.length;
+        const itemSpan = 1 / items.length;
+        const preparationFloor = Math.max(0.01, itemBase + itemSpan * 0.02);
+        let progressStarted = false;
+        let slowPreparationTimer: number | null = null;
 
-    await refreshHistory();
-    setBusy(false);
-    setProgress(0);
-    const storageNote = notPersisted ? ` ${notPersisted} arquivo(s) ficaram só nesta sessão por limite de armazenamento; baixe-os antes de fechar.` : '';
-    setStatus(`${completed} corte(s) prontos${failed ? `, ${failed} falharam` : ''}.${storageNote}`);
+        setRenderPhase('preparing');
+        setProgress((current) => Math.max(current, preparationFloor));
+        setStatus(`Preparando ${index + 1}/${items.length}: ${item.title}… Na primeira geração, o motor de vídeo local pode levar alguns segundos para carregar.`);
+        slowPreparationTimer = window.setTimeout(() => {
+          if (!progressStarted) {
+            setStatus(`Ainda preparando ${index + 1}/${items.length}. O TikCut está carregando o motor de vídeo no aparelho; mantenha esta tela aberta.`);
+          }
+        }, 8000);
+
+        const reportRenderProgress = (ratio: number) => {
+          if (!Number.isFinite(ratio)) return;
+          const safeRatio = clamp(ratio, 0, 1);
+          if (safeRatio <= 0) return;
+          progressStarted = true;
+          if (slowPreparationTimer !== null) {
+            window.clearTimeout(slowPreparationTimer);
+            slowPreparationTimer = null;
+          }
+          setRenderPhase('rendering');
+          // FFmpeg may emit 0 again or reach 1 before the output has been read/saved.
+          // Keep the UI monotonic and reserve the final 10% of each item for validation/storage.
+          const renderRatio = 0.05 + safeRatio * 0.85;
+          const mapped = itemBase + itemSpan * renderRatio;
+          setProgress((current) => Math.max(current, mapped, preparationFloor));
+          setStatus(`Gerando ${index + 1}/${items.length}: ${item.title} · ${Math.max(1, Math.round(renderRatio * 100))}% do corte.`);
+        };
+
+        try {
+          const blob = settings.format === 'vertical'
+            ? await exportVerticalMp4(file, item.start, item.end, reportRenderProgress)
+            : await exportCutMp4(file, item.start, item.end, reportRenderProgress);
+
+          if (slowPreparationTimer !== null) {
+            window.clearTimeout(slowPreparationTimer);
+            slowPreparationTimer = null;
+          }
+
+          setRenderPhase('saving');
+          setProgress((current) => Math.max(current, itemBase + itemSpan * 0.94));
+          setStatus(`Salvando ${index + 1}/${items.length}: ${item.title}…`);
+
+          const filename = `${safePrefix(settings.prefix)}-corte-${String(index + 1).padStart(2, '0')}-${Math.round(item.start)}s.mp4`;
+          const url = URL.createObjectURL(blob);
+          const previous = generatedRef.current[item.id];
+          if (previous) URL.revokeObjectURL(previous.url);
+          const record = {
+            id: crypto.randomUUID(),
+            filename,
+            sourceName: file.name,
+            start: item.start,
+            end: item.end,
+            kind: settings.format,
+            size: blob.size,
+            createdAt: new Date().toISOString(),
+          };
+          const saved = await saveFocusedOutput(record, blob, settings.saveGenerated);
+          if (settings.saveGenerated && !saved.blobSaved) notPersisted += 1;
+          const generatedItem: GeneratedCut = { url, filename, size: blob.size, saved: saved.blobSaved, start: item.start, end: item.end, kind: settings.format };
+          setGenerated((current) => ({ ...current, [item.id]: generatedItem }));
+          completed += 1;
+        } catch (error) {
+          failed += 1;
+          console.error('TikCut render failed', item, error);
+          setStatus(`Falha no corte ${index + 1}/${items.length}. O TikCut continuará com os próximos cortes.`);
+        } finally {
+          if (slowPreparationTimer !== null) window.clearTimeout(slowPreparationTimer);
+          setProgress((current) => Math.max(current, (index + 1) / items.length));
+        }
+      }
+
+      await refreshHistory();
+      const storageNote = notPersisted ? ` ${notPersisted} arquivo(s) ficaram só nesta sessão por limite de armazenamento; baixe-os antes de fechar.` : '';
+      setStatus(`${completed} corte(s) prontos${failed ? `, ${failed} falharam` : ''}.${storageNote}`);
+    } finally {
+      setBusy(false);
+      setRenderPhase('idle');
+      setProgress(0);
+    }
   }
 
   async function downloadHistoryItem(item: FocusedOutputRecord) {
@@ -366,6 +420,11 @@ export default function FocusedCutApp() {
   const storageText = storage.quota
     ? `${formatBytes(storage.used)} usados de aproximadamente ${formatBytes(storage.quota)}`
     : 'Armazenamento do navegador';
+  const busyLabel = renderPhase === 'preparing'
+    ? 'Preparando motor de vídeo…'
+    : renderPhase === 'saving'
+      ? `Salvando… ${Math.max(1, Math.round(progress * 100))}%`
+      : `Gerando… ${Math.max(1, Math.round(progress * 100))}%`;
 
   return (
     <main className="focus-app">
@@ -458,8 +517,8 @@ export default function FocusedCutApp() {
               <label>Nome dos arquivos<input aria-label="Prefixo dos arquivos" value={settings.prefix} onChange={(event) => replaceSettings({ prefix: event.target.value })} /></label>
               <label className="focus-toggle"><input type="checkbox" checked={settings.saveGenerated} onChange={(event) => replaceSettings({ saveGenerated: event.target.checked })} /><span>Salvar MP4 gerado no aparelho quando houver espaço</span></label>
             </div>
-            <button className="focus-generate" disabled={!file || !selectedCuts.length || busy} onClick={() => void renderCuts(selectedCuts)}>{busy ? `Gerando… ${Math.round(progress * 100)}%` : `GERAR ${selectedCuts.length || ''} CORTE${selectedCuts.length === 1 ? '' : 'S'}`}</button>
-            {busy && <div className="focus-progress"><span style={{ width: `${Math.max(2, progress * 100)}%` }} /></div>}
+            <button className="focus-generate" disabled={!file || !selectedCuts.length || busy} onClick={() => void renderCuts(selectedCuts)}>{busy ? busyLabel : `GERAR ${selectedCuts.length || ''} CORTE${selectedCuts.length === 1 ? '' : 'S'}`}</button>
+            {busy && <div className="focus-progress" role="progressbar" aria-label="Progresso da geração" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.max(1, Math.round(progress * 100))}><span style={{ width: `${Math.max(2, progress * 100)}%` }} /></div>}
             {generatedCount > 0 && <div className="focus-ready">{generatedCount} corte(s) pronto(s) nesta sessão. Use os botões “Baixar” na fila.</div>}
           </section>
 
