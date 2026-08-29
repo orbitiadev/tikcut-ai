@@ -74,12 +74,23 @@ test('mobile layout does not overflow at narrow widths', async ({ page }) => {
 
 test('mobile can render a real short cut and keep it in history', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'chromium-mobile');
+  await page.route('**/ffmpeg/ffmpeg-core.wasm', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 900));
+    await route.continue();
+  });
   await page.goto('/');
   await page.getByLabel('Quantidade de cortes').fill('1');
   await upload(page, shortWebm);
   await page.getByRole('button', { name: 'Gerar nova seleção automática' }).click();
   await expect(page.locator('.focus-cut')).toHaveCount(1);
   await page.getByRole('button', { name: /GERAR 1 CORTE$/ }).click();
+
+  const progressBar = page.getByRole('progressbar', { name: 'Progresso da geração' });
+  await expect(progressBar).toBeVisible({ timeout: 5_000 });
+  await expect(progressBar).not.toHaveAttribute('aria-valuenow', '0');
+  await expect(page.locator('.focus-generate')).not.toContainText('0%');
+  await expect(page.locator('.focus-generate')).toHaveText(/Preparando motor de vídeo|Gerando|Salvando/);
+
   await expect(page.getByText(/1 corte\(s\) prontos/)).toBeVisible({ timeout: 180_000 });
   await expect(page.getByRole('button', { name: /Baixar/ }).first()).toBeEnabled();
   await page.getByRole('button', { name: /Histórico/ }).click();
